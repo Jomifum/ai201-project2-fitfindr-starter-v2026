@@ -59,24 +59,24 @@
 
 ### `search_listings`
 
-- **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Finds listings by case-insensitive keyword overlap between the query and each listing's title, description, category, style tags, and brand; split text into lowercase alphanumeric terms, score by the number of distinct query terms found, and preserve source order on ties. Apply optional size and price filters, then return the highest-scoring matches up to `SEARCH_RESULT_LIMIT`.
+- **Inputs:** `description` (`str`); `size` (`str | None`); `max_price` (`float | None`, inclusive).
+- **Returns:** A `list[dict]` of listing records with `id`, `title`, `description`, `category`, `style_tags`, `size`, `condition`, `price`, `colors`, `brand`, and `platform`, ordered by match score. `brand` may be `None`.
+- **When it has nothing:** Return `[]` if no listing matches the query and filters. Size matching is case-insensitive by whole size token: `M` matches `S/M`, but `L` does not match `XL`.
 
 ### `suggest_outfit`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Suggests one or two outfits built around the selected listing, using pieces from the user's wardrobe when available.
+- **Inputs:** `new_item` (`dict`, a listing record); `wardrobe` (`dict` with an `items` list of wardrobe-item dicts).
+- **Returns:** A non-empty `str` containing one or two outfit suggestions; with wardrobe items, suggestions name pieces the user owns.
+- **When it has nothing:** If `wardrobe["items"]` is empty, return general styling advice for the listing as a non-empty string, not an error or empty string.
 
 ### `create_fit_card`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Writes a short, post-ready caption for the selected listing and its outfit suggestion.
+- **Inputs:** `outfit` (`str`, from `suggest_outfit`); `new_item` (`dict`, a listing record).
+- **Returns:** A `str` of two to four sentences that mentions the item, its price, and its platform once each, and describes its vibe.
+- **When it has nothing:** If `outfit` is empty or whitespace, return a non-empty descriptive fallback for the listing instead of raising.
 
 ---
 
@@ -93,7 +93,7 @@
      The grader checks your code against what you claim here, so the file and
      function have to be real. -->
 
-**Branch rule:**
+**Branch rule:** If `search_listings` returns `[]`, put an actionable message in `session["error"]` suggesting what the user could change, then return without calling the other tools. Otherwise, choose the first (best-ranked) result, store it in `session["selected_item"]`, call `suggest_outfit`, then pass its result and the selected item to `create_fit_card`.
 
 **Where it lives:** `agent.py::run_agent`
 
