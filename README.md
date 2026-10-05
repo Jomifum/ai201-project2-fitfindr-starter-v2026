@@ -39,7 +39,7 @@
 
 ## What This Does
 
-<!-- Three or four sentences: what a user asks for, and what they get back. -->
+Ask FitFindr for a secondhand clothing item, with optional size and price-limit phrases such as `size M` or `under $30`. It searches the bundled listings by keyword overlap, filters by size and price, and selects the highest-ranked match. The model suggests outfits using the saved wardrobe, or general styling advice if it is empty, then writes a postable fit-card caption. If nothing matches, FitFindr explains which keywords or filters to loosen.
 
 
 
@@ -93,13 +93,13 @@
      The grader checks your code against what you claim here, so the file and
      function have to be real. -->
 
-**Branch rule:** If `search_listings` returns `[]`, put an actionable message in `session["error"]` suggesting what the user could change, then return without calling the other tools. Otherwise, choose the first (best-ranked) result, store it in `session["selected_item"]`, call `suggest_outfit`, then pass its result and the selected item to `create_fit_card`.
+**Branch rule:** If `search_listings` returns `[]`, store an actionable message in `session["error"]` naming the query terms and any supplied size or price ceiling, then return without calling either model-backed tool. Otherwise, store the first ranked result in `session["selected_item"]`, call `suggest_outfit` with that item, and call `create_fit_card` with the stored outfit and item. If either model-backed tool raises `ModelUnavailable`, store an error and return the session.
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** `parse_query` uses case-insensitive regular expressions to extract `under $30` or `below 30` as a float price ceiling, and `size M` or `size XXS` as an uppercase size. It removes those phrases and leftover separators; the remaining text is the keyword description.
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** `query` is parsed into `parsed` (`description`, `size`, `max_price`). `search_listings` receives those stored values and its list is stored in `search_results`. The first result is stored in `selected_item`; `suggest_outfit` receives that session item and `wardrobe`, and its output is stored in `outfit_suggestion`. `create_fit_card` reads the stored item and outfit and stores its result in `fit_card`. `error` records an early stop or model failure.
 
 ---
 
@@ -113,8 +113,33 @@
 **One full query**
 
 ```
-$ python app.py ask '...'
+$ python app.py ask 'vintage graphic tee under $30'
+Selected item ID matches suggest_outfit input: True
+Final session debug (key fields): `query='vintage graphic tee under $30'`, `parsed.description='vintage graphic tee'`, `parsed.max_price=30.0`, `selected_item.id='lst_002'`, `error=None`.
 
+     Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+     Outfit:   Here are two wearable outfits centered on your **Y2K Baby Tee — Butterfly Print**:
+
+### Outfit 1: Y2K Streetwear (Casual daytime)
+*   **Top:** Y2K Baby Tee — Butterfly Print
+*   **Bottoms:** Baggy straight-leg jeans, dark wash (paired with the Brown leather belt)
+*   **Outerwear:** Black cropped zip hoodie
+*   **Shoes:** Chunky white sneakers
+*   **Accessories:** Black crossbody bag
+*   **Why it works:** The fitted, cropped baby tee contrasts sharply with the high-waisted, baggy dark indigo jeans for an authentic early-2000s silhouette. Layering the black cropped zip hoodie on top keeps the midriff balanced while playing into streetwear proportions.
+
+### Outfit 2: Edgy Contrast (Weekend errands or casual hangouts)
+*   **Top:** Y2K Baby Tee — Butterfly Print
+*   **Bottoms:** Wide-leg khaki trousers (paired with the Brown leather belt)
+*   **Outerwear:** Vintage black denim jacket
+*   **Shoes:** Black combat boots
+*   **Accessories:** Black crossbody bag
+*   **Why it works:** The pink and purple butterfly graphic pops against the neutral tan trousers. Tying the vintage black denim jacket and black combat boots into the look grounds the sweet cottagecore/Y2K vibe with classic grunge elements.
+
+     Fit card: Channel early-2000s streetwear energy with this sweet Y2K Baby Tee — Butterfly Print, available now for $18. Pair it with baggy dark wash jeans and chunky white sneakers for the ultimate casual daytime look. Grab it exclusively on depop before it's gone!
+
+0 model calls this session, 2 served from cache
 ```
 
 **The three tools, tested one at a time**
@@ -144,24 +169,28 @@ The three fit cards were identical because `CACHE_ENABLED=True`; `TEMPERATURE=0.
 
 ## How I Used AI
 
-<!-- Two specific moments. What you asked, what came back, what you changed.
+<!-- TODO: Write two of these candidates in your own words. For each, say
+     what you asked, what came back, and what you changed. -->
 
-     "I used Claude to help me code" is not enough.
+**Candidate 1: Query parser**
 
-     "I gave Claude my search_listings spec. It returned None on no match
-     instead of an empty list, so I changed it" is the level we want. -->
+- *What I asked for:* Add a `parse_query` helper for price and size phrases.
+- *What came back:* Three checks parsed `vintage graphic tee under $30`, `neon tuxedo under $2, size XXS`, and `black jeans` into the expected filters and descriptions.
+- *What I changed:* Added the helper in `agent.py` and committed it as `1281685`.
 
-**Moment 1**
+**Candidate 2: Empty-search branch**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Implement the session-backed planning branch and make the no-match message actionable.
+- *What came back:* The real search value for `neon tuxedo under $2, size XXS` was `[]`; the CLI then named the keywords, size, and price ceiling to change.
+- *What I changed:* Implemented the tool sequence and early return in `run_agent`, committed as `c670d68`.
 
-**Moment 2**
+**Candidate 3: Model errors and session debug**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Catch `ModelUnavailable` from both model-backed tools and print the final session with an item-identity check.
+- *What came back:* The happy path printed `Selected item ID matches suggest_outfit input: True`; mocked failures from both tools returned error sessions.
+- *What I changed:* Added both catches and the session debug view in `agent.py`, committed as `09d52dc`.
+
+**TODO for me:** Pick two candidates and write the final account in my own words.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
