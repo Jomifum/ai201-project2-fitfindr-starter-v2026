@@ -120,19 +120,25 @@ $ python app.py ask '...'
 **The three tools, tested one at a time**
 
 ```
-$ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
-
+Command: .\.venv\Scripts\python.exe -c "from tools import search_listings; print([(item['id'], item['price']) for item in search_listings('graphic tee', max_price=30)])"
+Output: [('lst_002', 18.0), ('lst_006', 24.0), ('lst_017', 15.0), ('lst_033', 19.0), ('lst_011', 27.0), ('lst_015', 26.0)]
 ```
 
 ```
-$ python -c "from tools import suggest_outfit; ..."
-
+Command: .\.venv\Scripts\python.exe -c "from tools import suggest_outfit; from utils.data_loader import get_empty_wardrobe, load_listings; advice=suggest_outfit(load_listings()[0], get_empty_wardrobe()); assert advice.strip(); print(advice.splitlines()[0])"
+Output: Here are two wearable, occasion-specific outfit suggestions built around your vintage Levi's 501s, using classic hypothetical basics.
 ```
 
 ```
-$ python -c "from tools import create_fit_card; ..."
 
+Command: .\.venv\Scripts\python.exe -c "from tools import create_fit_card; from utils.data_loader import load_listings; item=load_listings()[0]; outfit='white tee, olive chore jacket, white sneakers'; [print(create_fit_card(outfit, item)) for _ in range(3)]"
+Output:
+Grab these Vintage Levi's 501 Jeans — Medium Wash on depop for $38 to nail that effortless streetwear vibe. Style them with a crisp white tee, an olive chore jacket, and clean white sneakers for an easy, classic look.
+Grab these Vintage Levi's 501 Jeans — Medium Wash on depop for $38 to nail that effortless streetwear vibe. Style them with a crisp white tee, an olive chore jacket, and clean white sneakers for an easy, classic look.
+Grab these Vintage Levi's 501 Jeans — Medium Wash on depop for $38 to nail that effortless streetwear vibe. Style them with a crisp white tee, an olive chore jacket, and clean white sneakers for an easy, classic look.
 ```
+
+The three fit cards were identical because `CACHE_ENABLED=True`; `TEMPERATURE=0.9`.
 
 ---
 
