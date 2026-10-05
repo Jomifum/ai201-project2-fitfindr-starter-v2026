@@ -14,9 +14,28 @@ Build and test your three tools in `tools.py` first. Then come here.
 """
 
 import config
+import re
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card
 from generate import ModelUnavailable
+
+
+def parse_query(query: str) -> dict:
+    """Extract description keywords and optional size and price filters."""
+    description = query
+    price_match = re.search(r"\b(?:under|below)\s+\$?\s*(\d+(?:\.\d+)?)\b", query, re.IGNORECASE)
+    size_match = re.search(r"\bsize\s+([a-z0-9]+(?:/[a-z0-9]+)?)", query, re.IGNORECASE)
+
+    max_price = float(price_match.group(1)) if price_match else None
+    size = size_match.group(1).upper() if size_match else None
+
+    for match in sorted((m for m in (price_match, size_match) if m), key=lambda m: m.start(), reverse=True):
+        description = description[:match.start()] + description[match.end():]
+    description = re.sub(r"\s+([,.;])", r"\1", description)
+    description = re.sub(r"^[\s,;]+|[\s,;]+$", "", description)
+    description = re.sub(r"\s+", " ", description).strip()
+
+    return {"description": description, "size": size, "max_price": max_price}
 
 
 # ── session state ─────────────────────────────────────────────────────────────
