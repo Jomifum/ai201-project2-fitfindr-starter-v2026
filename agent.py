@@ -125,6 +125,12 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         than a stack trace. The import is already at the top of this file.
     """
     session = new_session(query, wardrobe)
+
+    def finish(item_id_matches="not applicable") -> dict:
+        print(f"Selected item ID matches suggest_outfit input: {item_id_matches}")
+        print(f"Final session: {session}")
+        return session
+
     session["parsed"] = parse_query(query)
     parsed = session["parsed"]
     session["search_results"] = search_listings(
@@ -147,16 +153,31 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             f"No listings match {' '.join(query_details)}. Try "
             f"one of these changes: {', '.join(suggestions[:-1])} or {suggestions[-1]}."
         )
-        return session
+        return finish()
 
     session["selected_item"] = session["search_results"][0]
-    session["outfit_suggestion"] = suggest_outfit(
-        session["selected_item"], session["wardrobe"]
-    )
-    session["fit_card"] = create_fit_card(
-        session["outfit_suggestion"], session["selected_item"]
-    )
-    return session
+    item_passed_to_suggest = session["selected_item"]
+    try:
+        session["outfit_suggestion"] = suggest_outfit(
+            item_passed_to_suggest, session["wardrobe"]
+        )
+    except ModelUnavailable:
+        session["error"] = (
+            "The model is unavailable while suggesting an outfit. Please try again."
+        )
+        return finish(session["selected_item"]["id"] == item_passed_to_suggest["id"])
+
+    item_id_matches = session["selected_item"]["id"] == item_passed_to_suggest["id"]
+    try:
+        session["fit_card"] = create_fit_card(
+            session["outfit_suggestion"], session["selected_item"]
+        )
+    except ModelUnavailable:
+        session["error"] = (
+            "The model is unavailable while creating the fit card. Please try again."
+        )
+        return finish(item_id_matches)
+    return finish(item_id_matches)
 
 
 # ── running it directly ───────────────────────────────────────────────────────
