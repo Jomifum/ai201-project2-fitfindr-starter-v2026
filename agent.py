@@ -125,9 +125,37 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         than a stack trace. The import is already at the top of this file.
     """
     session = new_session(query, wardrobe)
+    session["parsed"] = parse_query(query)
+    parsed = session["parsed"]
+    session["search_results"] = search_listings(
+        description=parsed["description"],
+        size=parsed["size"],
+        max_price=parsed["max_price"],
+    )
 
-    # TODO: delete these two lines and build the loop.
-    session["error"] = "The planning loop isn't built yet — see the TODO in agent.py."
+    if session["search_results"] == []:
+        query_details = [f"'{parsed['description'] or query}'"]
+        suggestions = []
+        if parsed["size"] is not None:
+            query_details.append(f"in size {parsed['size']}")
+            suggestions.append("try a different size")
+        if parsed["max_price"] is not None:
+            query_details.append(f"under ${parsed['max_price']:g}")
+            suggestions.insert(0, "raise the price ceiling")
+        suggestions.append("use broader keywords")
+        session["error"] = (
+            f"No listings match {' '.join(query_details)}. Try "
+            f"one of these changes: {', '.join(suggestions[:-1])} or {suggestions[-1]}."
+        )
+        return session
+
+    session["selected_item"] = session["search_results"][0]
+    session["outfit_suggestion"] = suggest_outfit(
+        session["selected_item"], session["wardrobe"]
+    )
+    session["fit_card"] = create_fit_card(
+        session["outfit_suggestion"], session["selected_item"]
+    )
     return session
 
 
