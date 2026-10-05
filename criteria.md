@@ -54,12 +54,12 @@ The selected item is passed through the session, so its identity should be prese
 
 ## 4. Fit cards keep required details
 
-For 5 fit cards generated from the same item and outfit, every card is 2–4 sentences and mentions the listing's title, price, and platform exactly once each; the wording may vary.
+With `CACHE_ENABLED=False` and `TEMPERATURE > 0`, generate five fit cards from the same item and outfit. Every card is 2–4 sentences and mentions the listing's title, price, and platform exactly once each. At least three of the five output strings must be distinct.
 
 
 **Why this target:**
 
-The model can phrase the caption differently, but the item facts and a usable caption length should remain consistent. I chose 5 of 5 because these are explicit requirements with all the needed data available to the tool, regardless of the wording it generates.
+I chose 5 of 5 for the item facts and sentence count because the tool receives the listing data needed for every card. Requiring three distinct strings shows the model can vary its wording without expecting all five generations to be unique.
 
 
 ---

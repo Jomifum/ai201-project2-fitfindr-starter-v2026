@@ -169,8 +169,8 @@ The three fit cards were identical because `CACHE_ENABLED=True`; `TEMPERATURE=0.
 
 ## How I Used AI
 
-<!-- TODO: Write two of these candidates in your own words. For each, say
-     what you asked, what came back, and what you changed. -->
+<!-- TODO: Before submission, choose two candidates and replace them with your
+     own account of what you asked, what came back, and what you changed. -->
 
 **Candidate 1: Query parser**
 
@@ -190,7 +190,7 @@ The three fit cards were identical because `CACHE_ENABLED=True`; `TEMPERATURE=0.
 - *What came back:* The happy path printed `Selected item ID matches suggest_outfit input: True`; mocked failures from both tools returned error sessions.
 - *What I changed:* Added both catches and the session debug view in `agent.py`, committed as `09d52dc`.
 
-**TODO for me:** Pick two candidates and write the final account in my own words.
+**TODO for me:** Replace two candidate entries with my own account of what I asked, what came back, and what I changed.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
