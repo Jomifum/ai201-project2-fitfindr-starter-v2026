@@ -283,10 +283,14 @@ that produced it:
 
 ```
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
-behaved differently afterwards. If the rewire didn't work, say exactly where it
-broke — the error text and the last thing that worked. That earns the point in
-full. -->
+### MCP Move
+
+Moved `search_listings` onto MCP. `mcp_server.py` registers the wrapper,
+`mcp_client.py::call_tool` makes the request and unwraps its value, and
+`agent.py::run_agent` now uses that client for search. With `description`
+`graphic tee`, `size` `L`, and `max_price` `24`, both calls returned equal
+`list[dict]` values: `lst_006` at `24.0` and `lst_033` at `19.0`. There was no
+difference in type, shape, or field values; prices remained floats.
 
 
 

@@ -133,11 +133,20 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
     session["parsed"] = parse_query(query)
     parsed = session["parsed"]
-    session["search_results"] = search_listings(
-        description=parsed["description"],
-        size=parsed["size"],
-        max_price=parsed["max_price"],
-    )
+    from mcp_client import MCPError, call_tool
+
+    try:
+        session["search_results"] = call_tool(
+            "search_listings",
+            {
+                "description": parsed["description"],
+                "size": parsed["size"],
+                "max_price": parsed["max_price"],
+            },
+        )
+    except MCPError:
+        session["error"] = "Couldn't reach search_listings over MCP. Please try again."
+        return finish()
 
     if session["search_results"] == []:
         query_details = [f"'{parsed['description'] or query}'"]
