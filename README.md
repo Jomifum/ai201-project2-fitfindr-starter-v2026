@@ -218,6 +218,8 @@ The three fit cards were identical because `CACHE_ENABLED=True`; `TEMPERATURE=0.
 | 4. Fit card facts and variation | 5/5 cards meet content/length; at least 3 distinct strings | PASS | PASS | PASS | PASS | PASS | MET (5/5; 5 distinct) |
 | 5. Model failure returns session error | 5/5 return non-empty error sessions | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
+C4's at-least-3-distinct check was verified by reading the saved report (5 distinct), not asserted by the scenario.
+
 **Real output from one try per criterion**, pasted as text and naming the source:
 
 ```
@@ -288,16 +290,40 @@ The model is unavailable while suggesting an outfit. Please try again.
 **Happy path**
 
 ```
-
+[1] parse_query
+     in:  vintage graphic tee under $30
+     out: description='vintage graphic tee', size=None, max_price=30.0
+[2] search_listings (via MCP)
+     in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+     out: 10 items: Y2K Baby Tee — Butterfly Print, Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey … +7 more
+[3] branch
+     in:  10 items: Y2K Baby Tee — Butterfly Print, Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey … +7 more
+     out: continue
+     →    search results found
+[4] suggest_outfit
+     in:  item_id=lst_002, wardrobe_items=10
+     out: Here are two wearable outfits centered on your **Y2K Baby Tee — Butterfly Print**:  ### Outfit 1: Y2K Streetwe…
+[5] create_fit_card
+     in:  item_id=lst_002, outfit=Here are two wearable outfits centered on your **Y2K Baby Tee — Butterfly Print**:  ##…
+     out: Channel early-2000s streetwear energy with this sweet Y2K Baby Tee — Butterfly Print, available now for $18. P…
 ```
 
 **Empty search**
 
 ```
-
+[1] parse_query
+     in:  neon tuxedo under $2, size XXS
+     out: description='neon tuxedo', size='XXS', max_price=2.0
+[2] search_listings (via MCP)
+     in:  {'description': 'neon tuxedo', 'size': 'XXS', 'max_price': 2.0}
+     out: [] (empty)
+[3] branch
+     in:  [] (empty)
+     out: stop
+     →    empty search results
 ```
 
-### MCP Move
+**On the MCP move:** **TODO for me:** After reading the trace, write what I noticed about the MCP call.
 
 Moved `search_listings` onto MCP. `mcp_server.py` registers the wrapper,
 `mcp_client.py::call_tool` makes the request and unwraps its value, and
@@ -305,6 +331,14 @@ Moved `search_listings` onto MCP. `mcp_server.py` registers the wrapper,
 `graphic tee`, `size` `L`, and `max_price` `24`, both calls returned equal
 `list[dict]` values: `lst_006` at `24.0` and `lst_033` at `19.0`. There was no
 difference in type, shape, or field values; prices remained floats.
+
+### Failure Modes
+
+- **Empty search:** `No listings match 'neon tuxedo' in size XXS under $2. Try one of these changes: raise the price ceiling, try a different size or use broader keywords.` Handler: `run_agent` returns on an empty `search_results` list before calling either model-backed tool.
+- **Empty wardrobe:** `app.py` prints `(running with an empty wardrobe)`; the real output began `Here are two specific outfit suggestions featuring the Y2K Butterfly Baby Tee, built using versatile wardrobe basics.` Handler: `suggest_outfit` asks for general styling using hypothetical basics when `items` is empty and has a non-empty fallback.
+- **Model unavailable:** `The model is unavailable while suggesting an outfit. Please try again.` Handler: `run_agent` catches `ModelUnavailable`, stores `session["error"]`, and returns.
+
+Trace calls were added after the before-run; they only log and don't change behavior. run_eval.py imports agent once per process.
 
 
 
