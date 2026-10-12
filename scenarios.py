@@ -86,9 +86,26 @@ def _run_with_criterion_checks(query: str, wardrobe: dict) -> dict:
             _agent, "create_fit_card", wraps=_agent.create_fit_card
         ) as card_call:
             session = _RUN_AGENT(query, wardrobe)
-        assert search_call.call_count == 1
-        assert outfit_call.call_count == 1
-        assert card_call.call_count == 1 and session["fit_card"]
+        assert search_call.call_count == 1, (
+            f"search_listings MCP call count expected 1, got {search_call.call_count}; "
+            f"session.error={session.get('error')!r}; "
+            f"session.fit_card={session.get('fit_card')!r}"
+        )
+        assert outfit_call.call_count == 1, (
+            f"suggest_outfit call count expected 1, got {outfit_call.call_count}; "
+            f"session.error={session.get('error')!r}; "
+            f"session.fit_card={session.get('fit_card')!r}"
+        )
+        assert card_call.call_count == 1, (
+            f"create_fit_card call count expected 1, got {card_call.call_count}; "
+            f"session.error={session.get('error')!r}; "
+            f"session.fit_card={session.get('fit_card')!r}"
+        )
+        assert bool(session["fit_card"]), (
+            f"fit_card truthiness expected True, got {bool(session['fit_card'])}; "
+            f"session.error={session.get('error')!r}; "
+            f"session.fit_card={session.get('fit_card')!r}"
+        )
         return session
 
     if criterion == 2:
