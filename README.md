@@ -169,28 +169,23 @@ The three fit cards were identical because `CACHE_ENABLED=True`; `TEMPERATURE=0.
 
 ## How I Used AI
 
-<!-- TODO: Before submission, choose two candidates and replace them with your
-     own account of what you asked, what came back, and what you changed. -->
+**Moment 1: Long evaluation output**
 
-**Candidate 1: Query parser**
+- *What I asked:* Inspect the after-run output and find the scenario results.
+- *What came back:* The terminal output exceeded the read limit (73 KB); the full text was saved separately.
+- *What changed:* I read the saved report in smaller sections instead of relying on the truncated terminal view.
 
-- *What I asked for:* Add a `parse_query` helper for price and size phrases.
-- *What came back:* Three checks parsed `vintage graphic tee under $30`, `neon tuxedo under $2, size XXS`, and `black jeans` into the expected filters and descriptions.
-- *What I changed:* Added the helper in `agent.py` and committed it as `1281685`.
+**Moment 2: Model-unavailable test**
 
-**Candidate 2: Empty-search branch**
+- *What I asked:* Verify a bad-key request failed cleanly without a cache hit or stack trace, then restore the key.
+- *What came back:* The first command response only confirmed the temporary one-character change; after restoring the backup, `test.py` passed 10/10. Inspection of the captured CLI output showed one model call, no cache hit, and the handled model-unavailable message.
+- *What changed:* I verified the saved CLI output and reran the environment/model check after restoring the backup; I did not change application code for this test.
 
-- *What I asked for:* Implement the session-backed planning branch and make the no-match message actionable.
-- *What came back:* The real search value for `neon tuxedo under $2, size XXS` was `[]`; the CLI then named the keywords, size, and price ceiling to change.
-- *What I changed:* Implemented the tool sequence and early return in `run_agent`, committed as `c670d68`.
+**Moment 3: C1 diagnostic rerun**
 
-**Candidate 3: Model errors and session debug**
-
-- *What I asked for:* Catch `ModelUnavailable` from both model-backed tools and print the final session with an item-identity check.
-- *What came back:* The happy path printed `Selected item ID matches suggest_outfit input: True`; mocked failures from both tools returned error sessions.
-- *What I changed:* Added both catches and the session debug view in `agent.py`, committed as `09d52dc`.
-
-**TODO for me:** Replace two candidate entries with my own account of what I asked, what came back, and what I changed.
+- *What I asked:* Add assertion-specific details to C1 and rerun that scenario five times.
+- *What came back:* All five diagnostic tries passed; each had one MCP search, one outfit call, one card call, a truthy card, and no session error.
+- *What changed:* I added diagnostic assertion messages in `scenarios.py` and saved `results/diagnostic_c1.md` in commit `4f49983`.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -338,7 +333,11 @@ After-run measures more strictly than the before-run (C4 threshold asserted, fai
      →    empty search results
 ```
 
-**On the MCP move:** **TODO for me:** After reading the trace, write what I noticed about the MCP call.
+**On the MCP move:** The trace shows `search_listings (via MCP)` with description, size, and max-price inputs; it returned a list of ten results. The prior direct/MCP comparison showed no type, shape, or value difference: `lst_006` at `24.0` and `lst_033` at `19.0`.
+
+**TODO (me):** Rewrite this observation in my own words after reading the trace.
+
+**Facts to use:** The trace labels the step `search_listings (via MCP)` and shows `description='vintage graphic tee'`, `size=None`, `max_price=30.0`; direct and MCP calls for `graphic tee`, size `L`, max price `24` returned equal lists with `lst_006` at `24.0` and `lst_033` at `19.0`.
 
 Moved `search_listings` onto MCP. `mcp_server.py` registers the wrapper,
 `mcp_client.py::call_tool` makes the request and unwraps its value, and
@@ -367,12 +366,14 @@ Trace calls were added after the before-run; they only log and don't change beha
      `python run_eval.py --label after` -->
 
 **What I changed:**
-`run_eval.py` now records each try's start time, duration, exception type/message, and `session.error`; `scenarios.py` asserts at least three distinct C4 cards across the five tries.
+I added per-try timestamps, durations, exception type/message, and `session.error` details to `run_eval.py`. I also added the C4 assertion that at least three of five fit cards are distinct.
 
 **Which failure it was meant to fix:**
-Criterion 1's unexplained bare `AssertionError`s in the before-run; their cause was unproven.
+The four unexplained C1 `AssertionError`s in the before-run. Their cause was not established, so the evaluator change records detail for future failures rather than claiming to fix an agent defect.
 
 **Did it help, and how do I know:**
+
+The change made eval failures observable and made the C4 variation requirement enforceable: the after report records start times, durations, and exception details, and C4's assertion passed with five distinct strings. C1 went from 1/5 before to 5/5 after, but this does not prove the instrumentation fixed the original agent failure: the diagnostic C1 rerun also passed 5/5, and `agent.py` was unchanged. The before report is `results/run_2026-10-09_0958_before.md`; the after report is `results/run_2026-10-12_0219_after.md`.
 
 <!-- If it made things worse, say that. Honestly reported, that earns full
      credit and is more interesting than one that worked. -->
@@ -387,6 +388,7 @@ Criterion 1's unexplained bare `AssertionError`s in the before-run; their cause 
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
 
+C1 is MET at 5/5 in the after-run, but the four before-run `AssertionError`s remain unexplained; the diagnostic rerun and after-run passed, and I cannot establish a cause from the original report. C2, C3, C4, and C5 are MET at 5/5; no criterion misses remain in the after-run. The model-unavailable message and MCP connection message still say “Please try again” without telling someone with a bad key or down server to check the key or server. The before-run also lacks per-try timings and assertion details; the new logger only provides those for later runs. Stretch features were not attempted. I stopped without changing agent behavior because the approved improvement was evaluation observability plus the C4 assertion; clearer recovery messages require a separate post-measurement change and run.
 
 
 <!-- ═════════════════════════════════════════════════════════════════════
