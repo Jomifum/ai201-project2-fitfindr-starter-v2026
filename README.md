@@ -212,17 +212,31 @@ The three fit cards were identical because `CACHE_ENABLED=True`; `TEMPERATURE=0.
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes | At least 4/5 complete all three tools and return a fit card | FAIL | FAIL | FAIL | FAIL | PASS | MISSED (1/5) |
+| 2. Impossible query stops early | 5/5 stop before `suggest_outfit` with actionable message | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Selected item reaches outfit tool | 5/5 matching queries have matching selected/passed item IDs | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card facts and variation | 5/5 cards meet content/length; at least 3 distinct strings | PASS | PASS | PASS | PASS | PASS | MET (5/5; 5 distinct) |
+| 5. Model failure returns session error | 5/5 return non-empty error sessions | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Real output from one try**, pasted as text, naming the file and function
-that produced it:
+**Real output from one try per criterion**, pasted as text and naming the source:
 
 ```
+C1 try 1 — scenarios.py::_run_with_criterion_checks via run_eval.py::run_once:
+AssertionError:
 
+C2 try 1 — agent.py::run_agent:
+No listings match 'neon tuxedo' in size XXS under $2. Try one of these changes: raise the price ceiling, try a different size or use broader keywords.
+
+C3 try 1 — run_eval.py::run_once; selected item and captured suggest_outfit argument IDs matched:
+- selected_item: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+- search_results: 3
+Outfit suggestion: Here are two wearable outfits centered on the **Graphic Tee — 2003 Tour Bootleg Style**:
+
+C4 try 1 — tools.py::create_fit_card:
+Achieve the ultimate streetwear vibe with these Vintage Levi's 501 Jeans — Medium Wash, available on depop for $38. They bring timeless classic energy to your wardrobe, especially when styled with a white tee, straight-leg jeans, and sneakers.
+
+C5 try 1 — agent.py::run_agent:
+The model is unavailable while suggesting an outfit. Please try again.
 ```
 
 ---
