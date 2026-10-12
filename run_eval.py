@@ -31,6 +31,7 @@ mode — caching is what usually explains it.
 import argparse
 import datetime as dt
 import sys
+import time
 import traceback
 
 import config
@@ -50,12 +51,31 @@ def run_once(scenario, use_trace=True):
     if use_trace:
         trace_module.start_trace()
 
-    record = {"error": None, "session": None, "trace": "", "crashed": None}
+    record = {
+        "error": None,
+        "session": None,
+        "trace": "",
+        "crashed": None,
+        "started_at": dt.datetime.now().astimezone().isoformat(timespec="milliseconds"),
+        "duration_seconds": None,
+        "exception_type": None,
+        "exception_message": None,
+        "session_error": None,
+    }
+    started = time.perf_counter()
     try:
         record["session"] = run_agent(scenario["query"], wardrobe)
     except Exception as exc:  # noqa: BLE001 — a crash is a result worth logging
         record["crashed"] = f"{type(exc).__name__}: {exc}"
+        record["exception_type"] = type(exc).__name__
+        record["exception_message"] = str(exc)
         record["traceback"] = traceback.format_exc()
+    finally:
+        record["duration_seconds"] = round(time.perf_counter() - started, 3)
+
+    session = record["session"]
+    if isinstance(session, dict):
+        record["session_error"] = session.get("error")
 
     if use_trace:
         record["trace"] = trace_module.get_trace()
@@ -178,6 +198,18 @@ def write_report(rows, args):
 
         for i, record in enumerate(row["tries"], 1):
             lines.append(f"**Try {i}**")
+            lines.append("")
+            lines += [
+                f"- Started at: `{record['started_at']}`",
+                f"- Duration: {record['duration_seconds']:.3f} seconds",
+            ]
+            if record["exception_type"] is not None:
+                lines += [
+                    f"- Exception type: `{record['exception_type']}`",
+                    f"- Exception message: {record['exception_message']}",
+                ]
+            if record["session_error"] is not None:
+                lines.append(f"- session.error: {record['session_error']}")
             lines.append("")
 
             if record["crashed"]:

@@ -241,6 +241,18 @@ C5 try 1 — agent.py::run_agent:
 The model is unavailable while suggesting an outfit. Please try again.
 ```
 
+### Run Log — After
+
+| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
+|---|---|---|---|---|---|---|---|
+| 1. Matching query completes | At least 4/5 complete all three tools and return a fit card | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops early | 5/5 stop before `suggest_outfit` with actionable message | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Selected item reaches outfit tool | 5/5 matching queries have matching selected/passed item IDs | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card facts and variation | 5/5 cards meet content/length; at least 3 distinct strings | PASS | PASS | PASS | PASS | PASS | MET (5/5; 5 distinct) |
+| 5. Model failure returns session error | 5/5 return non-empty error sessions | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+
+After-run measures more strictly than the before-run (C4 threshold asserted, failures logged in detail).
+
 ---
 
 ## Verdicts and Diagnoses
@@ -263,14 +275,17 @@ The model is unavailable while suggesting an outfit. Please try again.
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | Matching query completes all three tools | At least 4/5 | MISSED (1/5) | Four tries recorded `AssertionError`; try 5 completed all tools and returned a card. |
+| 2 | Impossible query stops before `suggest_outfit` | 5/5 | MET (5/5) | All five tries returned early with the actual query details and suggested changes. |
+| 3 | Selected item reaches the next tool | 5/5 | MET (5/5) | The scenario captured the `suggest_outfit` argument and all five ID comparisons passed. |
+| 4 | Fit cards keep required details | 5/5 plus at least 3 distinct strings | MET (5/5) | All five content checks passed; the saved report contains five distinct card strings. |
+| 5 | Model failures return an error session | 5/5 | MET (5/5) | All five mocked `ModelUnavailable` runs returned non-empty session errors. |
 
 **Diagnoses**
 
+**Criterion 1:** MISSED (1/5). Four tries ended in `AssertionError` in the C1 scenario wrapper. That wrapper checks `call_tool.call_count == 1`, `suggest_outfit.call_count == 1`, and `create_fit_card.call_count == 1` plus a truthy `session["fit_card"]`. The saved report records only `AssertionError:`; it does not preserve the failing assertion, traceback, or observed values. The failure is therefore localized to the scenario assertion, but the evidence cannot identify whether the underlying step was a tool, branch, session, or model output. The check itself matches criterion 1's sentence, so there is no evidence to revise the criterion.
+
+**Pattern:** Criteria 2–5 met their targets. C1 is the only miss, but the four identical exception labels do not establish a shared upstream cause.
 
 
 ---
@@ -352,18 +367,10 @@ Trace calls were added after the before-run; they only log and don't change beha
      `python run_eval.py --label after` -->
 
 **What I changed:**
+`run_eval.py` now records each try's start time, duration, exception type/message, and `session.error`; `scenarios.py` asserts at least three distinct C4 cards across the five tries.
 
 **Which failure it was meant to fix:**
-
-### Run Log — After
-
-| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
-|---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+Criterion 1's unexplained bare `AssertionError`s in the before-run; their cause was unproven.
 
 **Did it help, and how do I know:**
 

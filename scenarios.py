@@ -168,10 +168,14 @@ def _run_with_criterion_checks(query: str, wardrobe: dict) -> dict:
 
         _CRITERION_4_CARDS.append(card)
         if len(_CRITERION_4_CARDS) == 5:
+            distinct_count = len(set(_CRITERION_4_CARDS))
             print(
                 "Criterion 4 variation check: "
-                f"{len(set(_CRITERION_4_CARDS))} distinct strings across 5 tries "
+                f"{distinct_count} distinct strings across 5 tries "
                 "(target: at least 3)."
+            )
+            assert distinct_count >= 3, (
+                f"criterion 4 distinct-card count expected at least 3, got {distinct_count}"
             )
         return session
 
