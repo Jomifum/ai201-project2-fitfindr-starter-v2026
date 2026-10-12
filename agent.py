@@ -133,22 +133,48 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
     session["parsed"] = parse_query(query)
     parsed = session["parsed"]
+    trace.step(
+        "parse_query",
+        inputs=query,
+        returned=(
+            f"description={parsed['description']!r}, size={parsed['size']!r}, "
+            f"max_price={parsed['max_price']!r}"
+        ),
+    )
     from mcp_client import MCPError, call_tool
 
+    search_inputs = {
+        "description": parsed["description"],
+        "size": parsed["size"],
+        "max_price": parsed["max_price"],
+    }
     try:
         session["search_results"] = call_tool(
             "search_listings",
-            {
-                "description": parsed["description"],
-                "size": parsed["size"],
-                "max_price": parsed["max_price"],
-            },
+            search_inputs,
         )
     except MCPError:
+        trace.step(
+            "search_listings (via MCP)",
+            inputs=str(search_inputs),
+            returned="MCPError",
+            note="search failed",
+        )
         session["error"] = "Couldn't reach search_listings over MCP. Please try again."
         return finish()
+    trace.step(
+        "search_listings (via MCP)",
+        inputs=str(search_inputs),
+        returned=session["search_results"],
+    )
 
     if session["search_results"] == []:
+        trace.step(
+            "branch",
+            inputs=session["search_results"],
+            returned="stop",
+            note="empty search results",
+        )
         query_details = [f"'{parsed['description'] or query}'"]
         suggestions = []
         if parsed["size"] is not None:
@@ -164,28 +190,64 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         )
         return finish()
 
+    trace.step(
+        "branch",
+        inputs=session["search_results"],
+        returned="continue",
+        note="search results found",
+    )
     session["selected_item"] = session["search_results"][0]
     item_passed_to_suggest = session["selected_item"]
+    outfit_inputs = (
+        f"item_id={item_passed_to_suggest['id']}, "
+        f"wardrobe_items={len(session['wardrobe'].get('items', []))}"
+    )
     try:
         session["outfit_suggestion"] = suggest_outfit(
             item_passed_to_suggest, session["wardrobe"]
         )
     except ModelUnavailable:
+        trace.step(
+            "suggest_outfit",
+            inputs=outfit_inputs,
+            returned="ModelUnavailable",
+            note="model unavailable",
+        )
         session["error"] = (
             "The model is unavailable while suggesting an outfit. Please try again."
         )
         return finish(session["selected_item"]["id"] == item_passed_to_suggest["id"])
+    trace.step(
+        "suggest_outfit",
+        inputs=outfit_inputs,
+        returned=session["outfit_suggestion"],
+    )
 
     item_id_matches = session["selected_item"]["id"] == item_passed_to_suggest["id"]
+    card_inputs = (
+        f"item_id={session['selected_item']['id']}, "
+        f"outfit={session['outfit_suggestion']}"
+    )
     try:
         session["fit_card"] = create_fit_card(
             session["outfit_suggestion"], session["selected_item"]
         )
     except ModelUnavailable:
+        trace.step(
+            "create_fit_card",
+            inputs=card_inputs,
+            returned="ModelUnavailable",
+            note="model unavailable",
+        )
         session["error"] = (
             "The model is unavailable while creating the fit card. Please try again."
         )
         return finish(item_id_matches)
+    trace.step(
+        "create_fit_card",
+        inputs=card_inputs,
+        returned=session["fit_card"],
+    )
     return finish(item_id_matches)
 
 
