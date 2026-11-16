@@ -169,23 +169,13 @@ The three fit cards were identical because `CACHE_ENABLED=True`; `TEMPERATURE=0.
 
 ## How I Used AI
 
-**Moment 1: Long evaluation output**
+TODO (me)
 
-- *What I asked:* Inspect the after-run output and find the scenario results.
-- *What came back:* The terminal output exceeded the read limit (73 KB); the full text was saved separately.
-- *What changed:* I read the saved report in smaller sections instead of relying on the truncated terminal view.
+### Facts to use
 
-**Moment 2: Model-unavailable test**
-
-- *What I asked:* Verify a bad-key request failed cleanly without a cache hit or stack trace, then restore the key.
-- *What came back:* The first command response only confirmed the temporary one-character change; after restoring the backup, `test.py` passed 10/10. Inspection of the captured CLI output showed one model call, no cache hit, and the handled model-unavailable message.
-- *What changed:* I verified the saved CLI output and reran the environment/model check after restoring the backup; I did not change application code for this test.
-
-**Moment 3: C1 diagnostic rerun**
-
-- *What I asked:* Add assertion-specific details to C1 and rerun that scenario five times.
-- *What came back:* All five diagnostic tries passed; each had one MCP search, one outfit call, one card call, a truthy card, and no session error.
-- *What changed:* I added diagnostic assertion messages in `scenarios.py` and saved `results/diagnostic_c1.md` in commit `4f49983`.
+- Moment 1 — Asked to inspect the after-run output; the terminal output exceeded its read limit (73 KB) and was saved separately; read the saved report in smaller sections. Source: `results/run_2026-10-12_0219_after.md`.
+- Moment 2 — Asked to verify a bad-key request without a cache hit or stack trace, then restore the key; after restoration, `test.py` passed 10/10 and the captured CLI output showed the handled model-unavailable message; verified the saved output and reran the check without changing application code.
+- Moment 3 — Asked to add C1 assertion-specific details and rerun five times; all five diagnostic tries passed with one MCP search, outfit call, and card call and a truthy fit card; added scenario assertions and saved `results/diagnostic_c1.md` in commit `4f49983`.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -350,6 +340,12 @@ C5 — `agent.py::run_agent` with `suggest_outfit` mocked by `scenarios.py::_run
 
 **On the MCP move:** TODO (me)
 
+**Facts to use:**
+
+- Historical README records the direct and MCP calls for `description='graphic tee'`, `size='L'`, `max_price=24` returned equal `list[dict]` values: `lst_006` at `24.0` and `lst_033` at `19.0`, with no type, shape, or field-value difference.
+- `mcp_server.py` wraps the existing `tools.search_listings`; `mcp_client.py::call_tool` unwraps the response; `agent.py::run_agent` uses the client.
+- In `results/run_2026-11-15_2123_before.md`, trace step 2 is `search_listings (via MCP)` with parsed description, size, and max-price inputs; the matching query returns 10 listings. The empty query's MCP result is `[]`, followed by the branch stopping.
+
 ### Failure Modes
 
 - **Empty search:** `No listings match 'neon tuxedo' in size XXS under $2. Try one of these changes: raise the price ceiling, try a different size or use broader keywords.` Handler: `agent.py::run_agent` returns from the empty-results branch before calling either model-backed tool.
@@ -364,13 +360,29 @@ C5 — `agent.py::run_agent` with `suggest_outfit` mocked by `scenarios.py::_run
 
 `tools.search_listings` now sorts equal keyword scores by ascending listing price, preventing source order from deciding ties. For `denim jacket under $40, size L`, both matches scored 1; the $33 Shacket now ranks before the $38 Vintage Levi's 501 Jeans. This targets equal-score search ordering, not the remaining C4 miss: Try 4 omitted the title, so 4/5 cards passed even though there were 5 distinct strings.
 
+### Did it help, and how do I know
+
+TODO (me)
+
+#### Facts to use
+
+- Before: `results/run_2026-11-15_2123_before.md`; five tries per scenario, caching off, temperature 0.9; all five criteria MET, with four distinct C4 cards.
+- After: `results/run_2026-11-15_2147_after.md`; same harness settings; C1, C2, C3, and C5 MET at 5/5; C4 MISSED at 4/5 despite five distinct cards. Try 4's title assertion expected 1 occurrence and got 0.
+- The C4 query selected the $38 Vintage Levi's 501 Jeans in the before record and the $33 Shacket — Olive Canvas in the after record.
+
 ---
 
 ## What's Still Broken
 
-<!-- For each criterion still missed: what you'd do, and why you stopped where
-     you did. "I ran out of time" is fine if it's true. Pretending nothing is
-     left is not. -->
+TODO (me)
+
+### Facts to use
+
+- Criterion 1: 5/5 before and after; no recorded open issue.
+- Criterion 2: 5/5 before and after; no recorded open issue.
+- Criterion 3: 5/5 before and after; no recorded open issue.
+- Criterion 4: 5/5 before, 4/5 after; after Try 4 failed `criterion 4 title occurrence count: expected 1; actual=0` (`results/run_2026-11-15_2147_after.md`).
+- Criterion 5: 5/5 before and after; no recorded open issue.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
