@@ -82,7 +82,7 @@ def search_listings(
         if score := len(query_terms & set(re.findall(r"[a-z]+|\d+", searchable_text.casefold()))):
             matches.append((score, listing))
 
-    matches.sort(key=lambda match: -match[0])
+    matches.sort(key=lambda match: (-match[0], match[1]["price"]))
     return [listing for _, listing in matches[:config.SEARCH_RESULT_LIMIT]]
 
 

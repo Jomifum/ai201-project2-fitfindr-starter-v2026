@@ -268,6 +268,16 @@ C5 — `agent.py::run_agent` with `suggest_outfit` mocked by `scenarios.py::_run
 
 ### Run Log — After
 
+| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
+|---|---|---|---|---|---|---|---|
+| 1. Matching query completes | At least 4/5 complete all three tools and return a fit card | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops early | 5/5 stop before `suggest_outfit` and return a message naming what to change | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Selected item reaches the next tool | 5/5 selected IDs match the IDs actually passed to `suggest_outfit` | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit cards keep required details | With cache off and temperature > 0: five same-item/outfit cards; each 2–4 sentences with title, price, platform once; at least 3 distinct | PASS | PASS | PASS | FAIL | PASS | MISSED (4/5; 5 distinct) |
+| 5. Model failures return an error session | In 5/5 `ModelUnavailable` runs, return a session with non-empty `error` | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+
+> Harness disclosure: No differences; both runs used five tries per scenario, caching off, and temperature 0.9.
+
 ---
 
 ## Verdicts and Diagnoses
@@ -352,10 +362,7 @@ C5 — `agent.py::run_agent` with `suggest_outfit` mocked by `scenarios.py::_run
 
 ## The Improvement
 
-<!-- What you changed, why your diagnosis pointed at it, and the after-run in
-     the same table format. One change, measured properly.
-
-     `python run_eval.py --label after` -->
+`tools.search_listings` now sorts equal keyword scores by ascending listing price, preventing source order from deciding ties. For `denim jacket under $40, size L`, both matches scored 1; the $33 Shacket now ranks before the $38 Vintage Levi's 501 Jeans. This targets equal-score search ordering, not the remaining C4 miss: Try 4 omitted the title, so 4/5 cards passed even though there were 5 distinct strings.
 
 ---
 
