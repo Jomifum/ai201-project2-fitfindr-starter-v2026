@@ -186,6 +186,8 @@ TODO (me)
 
 ## Run Log — Before
 
+agent.py handler message changes were uncommitted while this run executed and were committed afterward (see commit c5f67aa).
+
 <!-- Five criteria, five tries each, in this exact format.
 
      Five, because your criteria are written out of five. Mark each try PASS
@@ -257,6 +259,8 @@ C5 — `agent.py::run_agent` with `suggest_outfit` mocked by `scenarios.py::_run
 ```
 
 ### Run Log — After
+
+agent.py handler message changes were uncommitted while this run executed and were committed afterward (see commit c5f67aa).
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
