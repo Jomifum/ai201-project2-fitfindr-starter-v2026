@@ -169,11 +169,13 @@ The three fit cards were identical because `CACHE_ENABLED=True`; `TEMPERATURE=0.
 
 ## How I Used AI
 
-**Moment 1:** I asked the agent to wait for “key is changed” before the key test. It ran the test before that confirmation. The first live call succeeded. Later, I set an invalid process key and the failure was caught. I recorded that result in Failure Modes.
+**Moment 1: the key test.** I asked the coding agent to wait for me to say "key is changed" before running the model-failure test. The first time it ran without waiting, and the model call succeeded when it should have failed. On the retry the call still succeeded, and the backup of my key was not in $env:TEMP. I stopped editing .env and set an invalid GEMINI_API_KEY in my terminal session instead, because config.py calls load_dotenv without override. The failure was then caught with a clear message, and I recorded it in Failure Modes.
 
-**Moment 2:** I asked for C1 assertion details and a five-try rerun. All five diagnostic tries passed, with one search, outfit call, and card call each. I added the checks and saved `results/diagnostic_c1.md`.
+**Moment 2: the C1 diagnosis.** I asked for the assertion details behind C1's four AssertionErrors in the Oct 9 run. The saved report had none, so it couldn't say which check failed. I added a message with the actual value to each assertion and reran C1 five times. All five passed, so the cause is still unproven, and the Oct 9 result stays on record as 1/5.
 
-**Moment 3:** I asked to rank lower-priced listings first when keyword scores tie. The C4 first item changed from `lst_001` ($38) to `lst_032` ($33), with the same outfit. I changed the sort in `tools.py` and saved the after-run report.
+**Moment 3: the search tie-break.** I asked for lower-priced listings to rank first when keyword scores tie. I changed the sort in tools.py. C4's item changed from lst_001 ($38) to lst_032 ($33), and C4 scored 4/5 in the after-run because try 4's card left out the title. Since the item changed, I can't say the tie-break caused that.
+
+**Moment 4: the C4 diagnosis.** An AI-suggested diagnosis said the `create_fit_card` prompt did not force the title. I checked `tools.py`, saw it already required the title exactly once, and corrected the diagnosis to the model's output.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -256,7 +258,9 @@ C5 — `agent.py::run_agent` with `suggest_outfit` mocked by `scenarios.py::_run
      →    model unavailable
 ```
 
-### Run Log — After
+**First before-run (Oct 9, `results/run_2026-10-09_0958_before.md`):** C1 MISSED (1/5; four blank `AssertionError`s, no detail recorded). C2, C3, C4, and C5 MET (5/5 each). I re-ran the full evaluation on Nov 15 with assertion messages and per-try timing recorded. That re-run is the table above. I'm keeping the Oct 9 result because I never found out why C1 failed.
+
+## Run Log — After
 
 agent.py handler message changes were uncommitted while this run executed and were committed afterward (see commit c5f67aa).
 
@@ -305,6 +309,8 @@ I used `results/run_2026-11-15_2123_before.md` and `results/run_2026-11-15_2147_
 The Oct 9 report has four blank C1 `AssertionError` entries and one pass. The diagnostic C1 rerun passed 5/5, so I cannot prove what caused the earlier failures. I am keeping that run as history.
 
 In the after-run, the search found results and the branch continued to `create_fit_card`. The title check failed on its output in one try. Its prompt already says, “Mention the listing title, price, and platform exactly once each.” The run used temperature 0.9. The search and branch did not fail.
+
+**C4 miss:** The failing step is the model's output inside `tools.py::create_fit_card`. The prompt already requires the title exactly once, but at temperature 0.9 the model left it out in 1 of 5 tries. It is one miss, so there is no pattern across criteria.
 
 ---
 
@@ -356,13 +362,13 @@ In the after-run, the search found results and the branch continued to `create_f
      →    empty search results
 ```
 
-**On the MCP move:** I moved `search_listings` to MCP, and the direct and MCP calls for `graphic tee`, size `L`, and max price 24 returned identical lists: `lst_006` at $24 and `lst_033` at $19. Trace step [2] shows `search_listings (via MCP)`, its inputs, and the results.
+**On the MCP move:** I moved `search_listings` to MCP, and the direct and MCP calls for `graphic tee`, size `L`, and max price 24 returned identical lists: `lst_006` at $24 and `lst_033` at $19. In `agent.py::run_agent`, the search now uses `mcp_client.call_tool` instead of calling `search_listings` directly. `mcp_server.py` registers `search_listings` as a wrapper around `tools.search_listings`. On connection failure, `run_agent` stores an error naming `mcp_server.py` and suggesting a restart. The results were identical, so behavior did not change. Trace step [2] shows `search_listings (via MCP)`, its inputs, and the results.
 
 ### Failure Modes
 
 - **Empty search:** `No listings match 'neon tuxedo' in size XXS under $2. Try one of these changes: raise the price ceiling, try a different size or use broader keywords.` Handler: `agent.py::run_agent` returns from the empty-results branch before calling either model-backed tool.
 - **Empty wardrobe:** The returned advice began: `Here are two specific outfit suggestions featuring the Y2K Butterfly Baby Tee, built using versatile wardrobe basics.` Handler: none needed; `tools.py::suggest_outfit` already gives general styling advice and has a non-empty fallback.
-- **Model unavailable:** Query: `silk slip dress in midi length under $40`. Message shown: `The model couldn't be reached while suggesting an outfit. Check the API key in .env and your network connection, then retry.` Triggered live by setting an invalid `GEMINI_API_KEY` in the process environment (config.py calls `load_dotenv` with `override=False`, so the process variable takes precedence over `.env`). `.env` itself was not edited.
+- **Model unavailable:** Query: `TODO (me): query used in the invalid-key run`. Message shown: `The model couldn't be reached while suggesting an outfit. Check the API key in .env and your network connection, then retry.` Triggered live by setting an invalid `GEMINI_API_KEY` in the process environment (config.py calls `load_dotenv` with `override=False`, so the process variable takes precedence over `.env`). `.env` itself was not edited.
 
 
 
@@ -386,34 +392,38 @@ I still need to address the C4 title omission. I would add a check that retries 
 
 The first live query succeeded. Later, I triggered the model failure by setting an invalid `GEMINI_API_KEY` in the process environment. `config.py` loads `.env` with `override=False`, so the process value took precedence. I did not edit `.env`.
 
+- For `denim jacket under $40, size L`, search returned Vintage Levi's 501 Jeans and Shacket — Olive Canvas. C4 ran on the pair of jeans, not a jacket, so the keyword match was loose.
+- For `90s track jacket in size M`, `parse_query` left "in" in the description: `90s track jacket in`.
+- C5 mocks `ModelUnavailable`, so it tests the handler, not a real outage. The live failure was a separate manual test.
+
 <!-- ═════════════════════════════════════════════════════════════════════
 
      SUBMISSION CHECKLIST — unit 3
 
-       [ ] criteria.md has five numbered criteria, each with a target
-       [ ] Each criterion has a reason underneath it
-       [ ] All five unit 3 sections above have real content
-       [ ] Tool Inventory: all three tools, inputs WITH TYPES, a specific
+       [x] criteria.md has five numbered criteria, each with a target
+       [x] Each criterion has a reason underneath it
+       [x] All five unit 3 sections above have real content
+       [x] Tool Inventory: all three tools, inputs WITH TYPES, a specific
            return value, and the empty case
-       [ ] Planning Loop names the branch rule and agent.py::run_agent
-       [ ] Sample Run: one full query plus the three per-tool tests, as text
-       [ ] At least four new commits
+       [x] Planning Loop names the branch rule and agent.py::run_agent
+       [x] Sample Run: one full query plus the three per-tool tests, as text
+       [x] At least four new commits
        [ ] Repository URL submitted — WRITE IT DOWN, you submit the same one
            next unit
 
      SUBMISSION CHECKLIST — unit 4
 
-       [ ] mcp_server.py exists with one tool registered
+       [x] mcp_server.py exists with one tool registered
            (or a written record of exactly where the rewire broke)
-       [ ] Run Log — Before, five criteria, five tries each
-       [ ] Real output pasted underneath, naming file and function
-       [ ] A verdict on every criterion
-       [ ] A diagnosis for every miss, naming a place AND a mechanism
-       [ ] Loop Trace, with the MCP call visible in it
-       [ ] All three failure modes triggered and handled
-       [ ] One improvement, with Run Log — After in the same format
-       [ ] What's Still Broken
-       [ ] At least four new commits
+       [x] Run Log — Before, five criteria, five tries each
+       [x] Real output pasted underneath, naming file and function
+       [x] A verdict on every criterion
+       [x] A diagnosis for every miss, naming a place AND a mechanism
+       [x] Loop Trace, with the MCP call visible in it
+       [x] All three failure modes triggered and handled
+       [x] One improvement, with Run Log — After in the same format
+       [x] What's Still Broken
+       [x] At least four new commits
        [ ] The SAME repository URL as last unit
 
      Do not delete and recreate this repository. Your commit history is what
