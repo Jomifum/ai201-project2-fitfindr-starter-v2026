@@ -169,13 +169,11 @@ The three fit cards were identical because `CACHE_ENABLED=True`; `TEMPERATURE=0.
 
 ## How I Used AI
 
-TODO (me)
+**Moment 1:** I asked the agent to wait for “key is changed” before the key test. It ran the test before that confirmation. The first live call succeeded. Later, I set an invalid process key and the failure was caught. I recorded that result in Failure Modes.
 
-### Facts to use
+**Moment 2:** I asked for C1 assertion details and a five-try rerun. All five diagnostic tries passed, with one search, outfit call, and card call each. I added the checks and saved `results/diagnostic_c1.md`.
 
-- Moment 1 — Asked to wait for “key is changed” before the key test; the agent ran it before that confirmation. The first live query, `silk slip dress in midi length under $40`, succeeded; a later run with an invalid process-level `GEMINI_API_KEY` triggered the model-unavailable message now recorded in Failure Modes.
-- Moment 2 — Asked to add C1 assertion details and rerun five times; all five diagnostic tries passed, with one MCP search, outfit call, and card call per try and a truthy fit card; added scenario assertions and saved `results/diagnostic_c1.md` (`4f49983`).
-- Moment 3 — Asked to prefer lower-priced listings on equal search scores; the C4 tie changed first item from `lst_001` ($38) to `lst_032` ($33), while the outfit stayed the same; changed the `tools.py` sort and recorded the after-run in `results/run_2026-11-15_2147_after.md`.
+**Moment 3:** I asked to rank lower-priced listings first when keyword scores tie. The C4 first item changed from `lst_001` ($38) to `lst_032` ($33), with the same outfit. I changed the sort in `tools.py` and saved the after-run report.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -292,15 +290,21 @@ agent.py handler message changes were uncommitted while this run executed and we
      Look for a pattern. Three misses on the same tool is one problem, not
      three. -->
 
-TODO (me)
+| Criterion | Target | Before | After | How I decided |
+|---|---|---|---|---|
+| C1. Matching query completes | All three tools and a fit card in at least 4/5 tries | MET, 5/5 | MET, 5/5 | All five tries completed the tools and returned a fit card. |
+| C2. Impossible query stops early | Stop before `suggest_outfit` and name a query detail to change in 5/5 tries | MET, 5/5 | MET, 5/5 | All five stopped before `suggest_outfit` and named a query detail to change. |
+| C3. Selected item reaches the next tool | The selected ID matches the ID passed to `suggest_outfit` in 5/5 tries | MET, 5/5 | MET, 5/5 | The selected ID matched the ID passed to `suggest_outfit` in all five tries. |
+| C4. Fit cards keep required details | With cache off and temperature above 0, each of five cards is 2–4 sentences with title, price, and platform exactly once; at least 3 distinct | MET, 5/5 (4 distinct) | MISSED, 4/5 (5 distinct) | Try 4 had the title 0 times; the check expected it once. |
+| C5. Model failures return an error session | Return a non-empty error in 5/5 `ModelUnavailable` runs | MET, 5/5 | MET, 5/5 | All five mocked `ModelUnavailable` runs returned a non-empty error. |
 
-### Facts to use
+I used `results/run_2026-11-15_2123_before.md` and `results/run_2026-11-15_2147_after.md` for these results.
 
-- C1 (target: at least 4/5): before 5/5 MET; after 5/5 MET. Reports: `results/run_2026-11-15_2123_before.md`; `results/run_2026-11-15_2147_after.md`.
-- C2 (target: 5/5): before 5/5 MET; after 5/5 MET. Reports: `results/run_2026-11-15_2123_before.md`; `results/run_2026-11-15_2147_after.md`.
-- C3 (target: 5/5): before 5/5 MET; after 5/5 MET. Reports: `results/run_2026-11-15_2123_before.md`; `results/run_2026-11-15_2147_after.md`.
-- C4 (five cards each 2–4 sentences with title, price, platform once; at least 3 distinct): before 5/5 MET (4 distinct); after 4/5 MISSED (5 distinct). Reports: `results/run_2026-11-15_2123_before.md`; `results/run_2026-11-15_2147_after.md`.
-- C5 (target: 5/5): before 5/5 MET; after 5/5 MET. Reports: `results/run_2026-11-15_2123_before.md`; `results/run_2026-11-15_2147_after.md`.
+### Diagnoses
+
+The Oct 9 report has four blank C1 `AssertionError` entries and one pass. The diagnostic C1 rerun passed 5/5, so I cannot prove what caused the earlier failures. I am keeping that run as history.
+
+In the after-run, the search found results and the branch continued to `create_fit_card`. The title check failed on its output in one try. Its prompt already says, “Mention the listing title, price, and platform exactly once each.” The run used temperature 0.9. The search and branch did not fail.
 
 ---
 
@@ -352,13 +356,7 @@ TODO (me)
      →    empty search results
 ```
 
-**On the MCP move:** TODO (me)
-
-**Facts to use:**
-
-- Direct and MCP calls for `description='graphic tee'`, `size='L'`, `max_price=24` returned identical `list[dict]` values: `lst_006` at `24.0` and `lst_033` at `19.0`; no type, shape, or field-value difference was recorded.
-- `mcp_server.py` wraps `tools.search_listings`; `mcp_client.py::call_tool` unwraps the response; `agent.py::run_agent` uses the client.
-- In `results/run_2026-11-15_2123_before.md`, trace step `[2]` shows the MCP search inputs (`description='vintage graphic tee'`, `size=None`, `max_price=30.0`) and 10 results; the empty query returns `[]`, then step `[3]` stops at the branch.
+**On the MCP move:** I moved `search_listings` to MCP, and the direct and MCP calls for `graphic tee`, size `L`, and max price 24 returned identical lists: `lst_006` at $24 and `lst_033` at $19. Trace step [2] shows `search_listings (via MCP)`, its inputs, and the results.
 
 ### Failure Modes
 
@@ -372,30 +370,21 @@ TODO (me)
 
 ## The Improvement
 
-`tools.search_listings` now sorts equal keyword scores by ascending listing price, preventing source order from deciding ties. For `denim jacket under $40, size L`, both matches scored 1; the $33 Shacket now ranks before the $38 Vintage Levi's 501 Jeans. This targets equal-score search ordering, not the remaining C4 miss: Try 4 omitted the title, so 4/5 cards passed even though there were 5 distinct strings.
+I changed `search_listings` to put the lower-priced listing first when keyword scores tie. For C4, the first item changed from `lst_001` at $38 to `lst_032` at $33. I made this change even though the before-run had no misses; I was not fixing a missed criterion.
 
 ### Did it help, and how do I know
 
-TODO (me)
+The before-run had no misses. C1, C2, C3, and C5 stayed at 5/5. C4 went from 5/5 with four distinct cards to 4/5 with five distinct cards. It used `lst_001` ($38) before and `lst_032` ($33) after, though the outfit text stayed the same. This is not a fair before-and-after comparison. The difference may be normal variation. I cannot say whether the change helped or hurt.
 
-#### Facts to use
-
-- Before vs after by criterion: C1 5/5 MET → 5/5 MET; C2 5/5 MET → 5/5 MET; C3 5/5 MET → 5/5 MET; C4 5/5 MET (4 distinct) → 4/5 MISSED (5 distinct); C5 5/5 MET → 5/5 MET. Reports: `results/run_2026-11-15_2123_before.md` and `results/run_2026-11-15_2147_after.md`.
-- The tie-break sorts equal keyword scores by ascending price; for C4, the selected first item changed from `lst_001` ($38) to `lst_032` ($33), with the same outfit string.
-- The Oct 9 C1 report `results/run_2026-10-09_0958_before.md` records 1/5 with blank assertion errors and an unexplained cause. It remains in history; its report was added in commit `f0f244e`.
+The after-run saved the failed title assertion, but not the card text. The Oct 9 report, `results/run_2026-10-09_0958_before.md`, remains in history: C1 was 1/5, with four blank `AssertionError` entries. The diagnostic rerun passed 5/5, so the cause is unproven.
 
 ---
 
 ## What's Still Broken
 
-TODO (me)
+I still need to address the C4 title omission. I would add a check that retries when the title is missing, then run a separate before-and-after evaluation. The Oct 9 harness recorded no assertion details or timings. Its first four C1 errors are blank. I did not try any stretch features.
 
-### Facts to use
-
-- C4 after Try 4: `criterion 4 title occurrence count: expected 1; actual=0` (`results/run_2026-11-15_2147_after.md`).
-- The first live query `silk slip dress in midi length under $40` succeeded; a later run with an invalid process-level `GEMINI_API_KEY` triggered the `ModelUnavailable` path, and the exact message is recorded in Failure Modes.
-- No stretch features were attempted; `scenarios.py` contains the five criterion scenarios plus the empty-wardrobe diagnostic.
-- The Oct 9 before report `results/run_2026-10-09_0958_before.md` shows C1 tries 1–4 as blank `AssertionError:` entries; the harness recorded no assertion detail.
+The first live query succeeded. Later, I triggered the model failure by setting an invalid `GEMINI_API_KEY` in the process environment. `config.py` loads `.env` with `override=False`, so the process value took precedence. I did not edit `.env`.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
