@@ -217,7 +217,8 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             note="model unavailable",
         )
         session["error"] = (
-            "The model is unavailable while suggesting an outfit. Please try again."
+            "The model couldn't be reached while suggesting an outfit. Check the "
+            "API key in .env and your network connection, then retry."
         )
         return finish(session["selected_item"]["id"] == item_passed_to_suggest["id"])
     trace.step(
@@ -243,7 +244,8 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             note="model unavailable",
         )
         session["error"] = (
-            "The model is unavailable while creating the fit card. Please try again."
+            "The model couldn't be reached while creating the fit card. Check the "
+            "API key in .env and your network connection, then retry."
         )
         return finish(item_id_matches)
     trace.step(
