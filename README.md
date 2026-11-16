@@ -173,7 +173,7 @@ TODO (me)
 
 ### Facts to use
 
-- Moment 1 — Asked to wait for “key is changed” before the key test; the agent ran it before that confirmation. The first live query, `silk slip dress in midi length under $40`, succeeded, so the live model-unavailable failure never happened; the README records the result and marks the failure mocked only.
+- Moment 1 — Asked to wait for “key is changed” before the key test; the agent ran it before that confirmation. The first live query, `silk slip dress in midi length under $40`, succeeded; a later run with an invalid process-level `GEMINI_API_KEY` triggered the model-unavailable message now recorded in Failure Modes.
 - Moment 2 — Asked to add C1 assertion details and rerun five times; all five diagnostic tries passed, with one MCP search, outfit call, and card call per try and a truthy fit card; added scenario assertions and saved `results/diagnostic_c1.md` (`4f49983`).
 - Moment 3 — Asked to prefer lower-priced listings on equal search scores; the C4 tie changed first item from `lst_001` ($38) to `lst_032` ($33), while the outfit stayed the same; changed the `tools.py` sort and recorded the after-run in `results/run_2026-11-15_2147_after.md`.
 
@@ -364,7 +364,7 @@ TODO (me)
 
 - **Empty search:** `No listings match 'neon tuxedo' in size XXS under $2. Try one of these changes: raise the price ceiling, try a different size or use broader keywords.` Handler: `agent.py::run_agent` returns from the empty-results branch before calling either model-backed tool.
 - **Empty wardrobe:** The returned advice began: `Here are two specific outfit suggestions featuring the Y2K Butterfly Baby Tee, built using versatile wardrobe basics.` Handler: none needed; `tools.py::suggest_outfit` already gives general styling advice and has a non-empty fallback.
-- **Model unavailable while suggesting an outfit:** `The model couldn't be reached while suggesting an outfit. Check the API key in .env and your network connection, then retry.` **While creating the fit card:** `The model couldn't be reached while creating the fit card. Check the API key in .env and your network connection, then retry.` Handler: `agent.py::run_agent` catches `ModelUnavailable`, stores the actionable message in `session["error"]`, and returns. Live query: `silk slip dress in midi length under $40`. It succeeded, showing `Found: 90s Silk Slip Dress — Floral, Midi Length — $30.0 on depop` and this fit-card message: `Channel ultimate 90s contrast by layering this gorgeous floral midi over a vintage denim jacket with chunky combat boots. The 90s Silk Slip Dress — Floral, Midi Length is available now on depop for just $30. Embrace a feminine cottagecore vibe by styling it solo with delicate jewelry for warm weather.` The live model-unavailable failure was not triggered; mocked only.
+- **Model unavailable:** Query: `silk slip dress in midi length under $40`. Message shown: `The model couldn't be reached while suggesting an outfit. Check the API key in .env and your network connection, then retry.` Triggered live by setting an invalid `GEMINI_API_KEY` in the process environment (config.py calls `load_dotenv` with `override=False`, so the process variable takes precedence over `.env`). `.env` itself was not edited.
 
 
 
@@ -393,7 +393,7 @@ TODO (me)
 ### Facts to use
 
 - C4 after Try 4: `criterion 4 title occurrence count: expected 1; actual=0` (`results/run_2026-11-15_2147_after.md`).
-- The live query `silk slip dress in midi length under $40` succeeded; no live `ModelUnavailable` failure occurred. The model-unavailable path remains mocked only in `README.md`'s Failure Modes record.
+- The first live query `silk slip dress in midi length under $40` succeeded; a later run with an invalid process-level `GEMINI_API_KEY` triggered the `ModelUnavailable` path, and the exact message is recorded in Failure Modes.
 - No stretch features were attempted; `scenarios.py` contains the five criterion scenarios plus the empty-wardrobe diagnostic.
 - The Oct 9 before report `results/run_2026-10-09_0958_before.md` shows C1 tries 1–4 as blank `AssertionError:` entries; the harness recorded no assertion detail.
 
