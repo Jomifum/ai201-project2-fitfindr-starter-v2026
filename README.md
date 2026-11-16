@@ -333,34 +333,13 @@ After-run measures more strictly than the before-run (C4 threshold asserted, fai
      →    empty search results
 ```
 
-**On the MCP move:** The trace shows `search_listings (via MCP)` with description, size, and max-price inputs; it returned a list of ten results. The prior direct/MCP comparison showed no type, shape, or value difference: `lst_006` at `24.0` and `lst_033` at `19.0`.
-
-**TODO (me):** Rewrite this observation in my own words after reading the trace.
-
-**Facts to use:** The trace labels the step `search_listings (via MCP)` and shows `description='vintage graphic tee'`, `size=None`, `max_price=30.0`; direct and MCP calls for `graphic tee`, size `L`, max price `24` returned equal lists with `lst_006` at `24.0` and `lst_033` at `19.0`.
-
-Moved `search_listings` onto MCP. `mcp_server.py` registers the wrapper,
-`mcp_client.py::call_tool` makes the request and unwraps its value, and
-`agent.py::run_agent` now uses that client for search. With `description`
-`graphic tee`, `size` `L`, and `max_price` `24`, both calls returned equal
-`list[dict]` values: `lst_006` at `24.0` and `lst_033` at `19.0`. There was no
-difference in type, shape, or field values; prices remained floats.
-
-### MCP Move
-
-Moved `search_listings` from `tools.py` behind the wrapper in `mcp_server.py`;
-`agent.py` calls it through `mcp_client.py`. For `description='graphic tee'`,
-`size='L'`, `max_price=24`, MCP and direct calls returned the same two records
-(`lst_006` at `24.0`, `lst_033` at `19.0`), with no type, shape, or field-value
-differences.
+**On the MCP move:** TODO (me)
 
 ### Failure Modes
 
-- **Empty search:** `No listings match 'neon tuxedo' in size XXS under $2. Try one of these changes: raise the price ceiling, try a different size or use broader keywords.` Handler: `run_agent` returns on an empty `search_results` list before calling either model-backed tool.
-- **Empty wardrobe:** `app.py` prints `(running with an empty wardrobe)`; the real output began `Here are two specific outfit suggestions featuring the Y2K Butterfly Baby Tee, built using versatile wardrobe basics.` Handler: `suggest_outfit` asks for general styling using hypothetical basics when `items` is empty and has a non-empty fallback.
-- **Model unavailable:** `The model is unavailable while suggesting an outfit. Please try again.` Handler: `run_agent` catches `ModelUnavailable`, stores `session["error"]`, and returns.
-
-Trace calls were added after the before-run; they only log and don't change behavior. run_eval.py imports agent once per process.
+- **Empty search:** `No listings match 'neon tuxedo' in size XXS under $2. Try one of these changes: raise the price ceiling, try a different size or use broader keywords.` Handler: `agent.py::run_agent` returns from the empty-results branch before calling either model-backed tool.
+- **Empty wardrobe:** The returned advice began: `Here are two specific outfit suggestions featuring the Y2K Butterfly Baby Tee, built using versatile wardrobe basics.` Handler: none needed; `tools.py::suggest_outfit` already gives general styling advice and has a non-empty fallback.
+- **Model unavailable while suggesting an outfit:** `The model couldn't be reached while suggesting an outfit. Check the API key in .env and your network connection, then retry.` **While creating the fit card:** `The model couldn't be reached while creating the fit card. Check the API key in .env and your network connection, then retry.` Handler: `agent.py::run_agent` catches `ModelUnavailable`, stores the actionable message in `session["error"]`, and returns. The live model call succeeded; these handler messages were verified with mocked failures.
 
 
 
@@ -373,21 +352,6 @@ Trace calls were added after the before-run; they only log and don't change beha
 
      `python run_eval.py --label after` -->
 
-**What I changed:**
-I added per-try timestamps, durations, exception type/message, and `session.error` details to `run_eval.py`. I also added the C4 assertion that at least three of five fit cards are distinct.
-
-**Which failure it was meant to fix:**
-The four unexplained C1 `AssertionError`s in the before-run. Their cause was not established, so the evaluator change records detail for future failures rather than claiming to fix an agent defect.
-
-**Did it help, and how do I know:**
-
-The change made eval failures observable and made the C4 variation requirement enforceable: the after report records start times, durations, and exception details, and C4's assertion passed with five distinct strings. C1 went from 1/5 before to 5/5 after, but this does not prove the instrumentation fixed the original agent failure: the diagnostic C1 rerun also passed 5/5, and `agent.py` was unchanged. The before report is `results/run_2026-10-09_0958_before.md`; the after report is `results/run_2026-10-12_0219_after.md`.
-
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
-
-
-
 ---
 
 ## What's Still Broken
@@ -395,9 +359,6 @@ The change made eval failures observable and made the C4 variation requirement e
 <!-- For each criterion still missed: what you'd do, and why you stopped where
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
-
-C1 is MET at 5/5 in the after-run, but the four before-run `AssertionError`s remain unexplained; the diagnostic rerun and after-run passed, and I cannot establish a cause from the original report. C2, C3, C4, and C5 are MET at 5/5; no criterion misses remain in the after-run. The model-unavailable message and MCP connection message still say “Please try again” without telling someone with a bad key or down server to check the key or server. The before-run also lacks per-try timings and assertion details; the new logger only provides those for later runs. Stretch features were not attempted. I stopped without changing agent behavior because the approved improvement was evaluation observability plus the C4 assertion; clearer recovery messages require a separate post-measurement change and run.
-
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
