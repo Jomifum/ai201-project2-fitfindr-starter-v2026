@@ -368,7 +368,7 @@ In the after-run, the search found results and the branch continued to `create_f
 
 - **Empty search:** `No listings match 'neon tuxedo' in size XXS under $2. Try one of these changes: raise the price ceiling, try a different size or use broader keywords.` Handler: `agent.py::run_agent` returns from the empty-results branch before calling either model-backed tool.
 - **Empty wardrobe:** The returned advice began: `Here are two specific outfit suggestions featuring the Y2K Butterfly Baby Tee, built using versatile wardrobe basics.` Handler: none needed; `tools.py::suggest_outfit` already gives general styling advice and has a non-empty fallback.
-- **Model unavailable:** Query: `TODO (me): query used in the invalid-key run`. Message shown: `The model couldn't be reached while suggesting an outfit. Check the API key in .env and your network connection, then retry.` Triggered live by setting an invalid `GEMINI_API_KEY` in the process environment (config.py calls `load_dotenv` with `override=False`, so the process variable takes precedence over `.env`). `.env` itself was not edited.
+- **Model unavailable:** Query: `silk slip dress in midi length under $40`. Message shown: `The model couldn't be reached while suggesting an outfit. Check the API key in .env and your network connection, then retry.` Triggered live by setting an invalid `GEMINI_API_KEY` in the process environment (config.py calls `load_dotenv` with `override=False`, so the process variable takes precedence over `.env`). `.env` itself was not edited.
 
 
 
