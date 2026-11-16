@@ -173,9 +173,9 @@ TODO (me)
 
 ### Facts to use
 
-- Moment 1 — Asked to inspect the after-run output; the terminal output exceeded its read limit (73 KB) and was saved separately; read the saved report in smaller sections. Source: `results/run_2026-10-12_0219_after.md`.
-- Moment 2 — Asked to verify a bad-key request without a cache hit or stack trace, then restore the key; after restoration, `test.py` passed 10/10 and the captured CLI output showed the handled model-unavailable message; verified the saved output and reran the check without changing application code.
-- Moment 3 — Asked to add C1 assertion-specific details and rerun five times; all five diagnostic tries passed with one MCP search, outfit call, and card call and a truthy fit card; added scenario assertions and saved `results/diagnostic_c1.md` in commit `4f49983`.
+- Moment 1 — Asked to wait for “key is changed” before the key test; the agent ran it before that confirmation. The first live query, `silk slip dress in midi length under $40`, succeeded, so the live model-unavailable failure never happened; the README records the result and marks the failure mocked only.
+- Moment 2 — Asked to add C1 assertion details and rerun five times; all five diagnostic tries passed, with one MCP search, outfit call, and card call per try and a truthy fit card; added scenario assertions and saved `results/diagnostic_c1.md` (`4f49983`).
+- Moment 3 — Asked to prefer lower-priced listings on equal search scores; the C4 tie changed first item from `lst_001` ($38) to `lst_032` ($33), while the outfit stayed the same; changed the `tools.py` sort and recorded the after-run in `results/run_2026-11-15_2147_after.md`.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -292,6 +292,16 @@ agent.py handler message changes were uncommitted while this run executed and we
      Look for a pattern. Three misses on the same tool is one problem, not
      three. -->
 
+TODO (me)
+
+### Facts to use
+
+- C1 (target: at least 4/5): before 5/5 MET; after 5/5 MET. Reports: `results/run_2026-11-15_2123_before.md`; `results/run_2026-11-15_2147_after.md`.
+- C2 (target: 5/5): before 5/5 MET; after 5/5 MET. Reports: `results/run_2026-11-15_2123_before.md`; `results/run_2026-11-15_2147_after.md`.
+- C3 (target: 5/5): before 5/5 MET; after 5/5 MET. Reports: `results/run_2026-11-15_2123_before.md`; `results/run_2026-11-15_2147_after.md`.
+- C4 (five cards each 2–4 sentences with title, price, platform once; at least 3 distinct): before 5/5 MET (4 distinct); after 4/5 MISSED (5 distinct). Reports: `results/run_2026-11-15_2123_before.md`; `results/run_2026-11-15_2147_after.md`.
+- C5 (target: 5/5): before 5/5 MET; after 5/5 MET. Reports: `results/run_2026-11-15_2123_before.md`; `results/run_2026-11-15_2147_after.md`.
+
 ---
 
 ## Loop Trace
@@ -346,9 +356,9 @@ agent.py handler message changes were uncommitted while this run executed and we
 
 **Facts to use:**
 
-- Historical README records the direct and MCP calls for `description='graphic tee'`, `size='L'`, `max_price=24` returned equal `list[dict]` values: `lst_006` at `24.0` and `lst_033` at `19.0`, with no type, shape, or field-value difference.
-- `mcp_server.py` wraps the existing `tools.search_listings`; `mcp_client.py::call_tool` unwraps the response; `agent.py::run_agent` uses the client.
-- In `results/run_2026-11-15_2123_before.md`, trace step 2 is `search_listings (via MCP)` with parsed description, size, and max-price inputs; the matching query returns 10 listings. The empty query's MCP result is `[]`, followed by the branch stopping.
+- Direct and MCP calls for `description='graphic tee'`, `size='L'`, `max_price=24` returned identical `list[dict]` values: `lst_006` at `24.0` and `lst_033` at `19.0`; no type, shape, or field-value difference was recorded.
+- `mcp_server.py` wraps `tools.search_listings`; `mcp_client.py::call_tool` unwraps the response; `agent.py::run_agent` uses the client.
+- In `results/run_2026-11-15_2123_before.md`, trace step `[2]` shows the MCP search inputs (`description='vintage graphic tee'`, `size=None`, `max_price=30.0`) and 10 results; the empty query returns `[]`, then step `[3]` stops at the branch.
 
 ### Failure Modes
 
@@ -370,9 +380,9 @@ TODO (me)
 
 #### Facts to use
 
-- Before: `results/run_2026-11-15_2123_before.md`; five tries per scenario, caching off, temperature 0.9; all five criteria MET, with four distinct C4 cards.
-- After: `results/run_2026-11-15_2147_after.md`; same harness settings; C1, C2, C3, and C5 MET at 5/5; C4 MISSED at 4/5 despite five distinct cards. Try 4's title assertion expected 1 occurrence and got 0.
-- The C4 query selected the $38 Vintage Levi's 501 Jeans in the before record and the $33 Shacket — Olive Canvas in the after record.
+- Before vs after by criterion: C1 5/5 MET → 5/5 MET; C2 5/5 MET → 5/5 MET; C3 5/5 MET → 5/5 MET; C4 5/5 MET (4 distinct) → 4/5 MISSED (5 distinct); C5 5/5 MET → 5/5 MET. Reports: `results/run_2026-11-15_2123_before.md` and `results/run_2026-11-15_2147_after.md`.
+- The tie-break sorts equal keyword scores by ascending price; for C4, the selected first item changed from `lst_001` ($38) to `lst_032` ($33), with the same outfit string.
+- The Oct 9 C1 report `results/run_2026-10-09_0958_before.md` records 1/5 with blank assertion errors and an unexplained cause. It remains in history; its report was added in commit `f0f244e`.
 
 ---
 
@@ -382,11 +392,10 @@ TODO (me)
 
 ### Facts to use
 
-- Criterion 1: 5/5 before and after; no recorded open issue.
-- Criterion 2: 5/5 before and after; no recorded open issue.
-- Criterion 3: 5/5 before and after; no recorded open issue.
-- Criterion 4: 5/5 before, 4/5 after; after Try 4 failed `criterion 4 title occurrence count: expected 1; actual=0` (`results/run_2026-11-15_2147_after.md`).
-- Criterion 5: 5/5 before and after; no recorded open issue.
+- C4 after Try 4: `criterion 4 title occurrence count: expected 1; actual=0` (`results/run_2026-11-15_2147_after.md`).
+- The live query `silk slip dress in midi length under $40` succeeded; no live `ModelUnavailable` failure occurred. The model-unavailable path remains mocked only in `README.md`'s Failure Modes record.
+- No stretch features were attempted; `scenarios.py` contains the five criterion scenarios plus the empty-wardrobe diagnostic.
+- The Oct 9 before report `results/run_2026-10-09_0958_before.md` shows C1 tries 1–4 as blank `AssertionError:` entries; the harness recorded no assertion detail.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
