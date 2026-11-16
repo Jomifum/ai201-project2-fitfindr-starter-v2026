@@ -70,6 +70,9 @@ def run_once(scenario, use_trace=True):
         record["exception_type"] = type(exc).__name__
         record["exception_message"] = str(exc)
         record["traceback"] = traceback.format_exc()
+        failed_session = getattr(exc, "session", None)
+        if isinstance(failed_session, dict):
+            record["session"] = failed_session
     finally:
         record["duration_seconds"] = round(time.perf_counter() - started, 3)
 
