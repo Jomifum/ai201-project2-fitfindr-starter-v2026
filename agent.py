@@ -160,7 +160,10 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             returned="MCPError",
             note="search failed",
         )
-        session["error"] = "Couldn't reach search_listings over MCP. Please try again."
+        session["error"] = (
+            "The MCP search_listings call failed. Check mcp_server.py, restart the "
+            "server, and re-run your search."
+        )
         return finish()
     trace.step(
         "search_listings (via MCP)",

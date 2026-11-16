@@ -346,6 +346,14 @@ Moved `search_listings` onto MCP. `mcp_server.py` registers the wrapper,
 `list[dict]` values: `lst_006` at `24.0` and `lst_033` at `19.0`. There was no
 difference in type, shape, or field values; prices remained floats.
 
+### MCP Move
+
+Moved `search_listings` from `tools.py` behind the wrapper in `mcp_server.py`;
+`agent.py` calls it through `mcp_client.py`. For `description='graphic tee'`,
+`size='L'`, `max_price=24`, MCP and direct calls returned the same two records
+(`lst_006` at `24.0`, `lst_033` at `19.0`), with no type, shape, or field-value
+differences.
+
 ### Failure Modes
 
 - **Empty search:** `No listings match 'neon tuxedo' in size XXS under $2. Try one of these changes: raise the price ceiling, try a different size or use broader keywords.` Handler: `run_agent` returns on an empty `search_results` list before calling either model-backed tool.
