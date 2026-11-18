@@ -246,3 +246,30 @@ history is what shows your criteria existed before your results did.
 units.
 
 `results/` is deliberately **not** in `.gitignore`.
+
+## Capstone run path (Path B: local with logs)
+
+Run one local query from the repository folder with the virtual environment
+active:
+
+```powershell
+python app.py ask '<query>'
+```
+
+The latest `python test.py` output reported Python 3.12.10. The package ranges
+in `requirements.txt` are `python-dotenv>=1.0,<1.2`,
+`google-genai>=1.0,<2.0`, `mcp>=1.0,<2.0`, `flask>=3.0,<4.0`, and
+`gunicorn>=21.2,<24.0`. No model files are needed; `generate.py` calls the
+model API. Copy `.env.example` to `.env` and set `GEMINI_API_KEY` there. `.env`
+is ignored by Git; never commit it.
+
+The run log path is selected by `FITFINDR_LOG`; when unset, it is
+`logs/runs.jsonl`. Read it in PowerShell with:
+
+```powershell
+if ($env:FITFINDR_LOG) { Get-Content -LiteralPath $env:FITFINDR_LOG } else { Get-Content -LiteralPath .\logs\runs.jsonl }
+```
+
+There is no separate Capstone evaluator in the repository yet. The existing
+scenario evaluator runs five tries per scenario; when Capstone scenarios are
+available, run it with `python run_eval.py --label capstone`.
