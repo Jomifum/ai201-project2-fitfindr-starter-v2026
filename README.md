@@ -433,3 +433,43 @@ The first live query succeeded. Later, I triggered the model failure by setting 
 ---
 
 📖 **How to run this project: [RUNNING.md](RUNNING.md)**
+
+## Capstone
+
+**What This Extends**
+
+FitFindr (the unit 3/4 agent). New: failure handling for model-backed steps and bad input, plus a structured run log. It builds on agent.py::run_agent, generate.py, and the existing MCP search.
+
+**The Shape**
+
+Shape B (harden against failure), run Path B (local with logs). Out of scope: hosting or serve.py deployment; fixing search ranking or the parse_query leftover-word issue; adding tools or a second MCP tool; rewriting scenarios.py or run_eval.py.
+
+Stretch declared before building: latency breakdown (per-stage timing from the run log).
+
+**Running It**
+
+TODO (me)
+
+**Instrumentation**
+
+TODO (me)
+
+**What It Costs**
+
+TODO (me)
+
+**Run Log and Verdicts**
+
+TODO (me)
+
+**The Improvement**
+
+TODO (me)
+
+**What's Still Broken**
+
+TODO (me)
+
+**How I Used AI**
+
+TODO (me)
