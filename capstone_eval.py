@@ -1,13 +1,15 @@
 """Criterion-driven Capstone evaluation. Run with `.venv\\Scripts\\python.exe capstone_eval.py`."""
 
+import argparse
 import contextlib
 import copy
 import io
 import json
 import os
 import time
+from contextlib import ExitStack
 from pathlib import Path
-from unittest.mock import ExitStack, patch
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parent
@@ -92,15 +94,16 @@ def _load_runtime():
     }
 
 
-def _run_trial(runtime, label, case, secrets):
+def _run_trial(runtime, label, case, secrets, run_label):
     agent = runtime["agent"]
     generate = runtime["generate"]
     mcp_client = runtime["mcp_client"]
     tools = runtime["tools"]
     trace = runtime["trace"]
 
-    run_log_path = RESULTS / f"{label}_runs.jsonl"
-    trial_path = RESULTS / f"{label}_trials.jsonl"
+    prefix = f"{run_label}_" if run_label else ""
+    run_log_path = RESULTS / f"{prefix}{label}_runs.jsonl"
+    trial_path = RESULTS / f"{prefix}{label}_trials.jsonl"
     prior_run_lines = _read_lines(run_log_path)
     calls_before = generate.call_count()
     stage_calls = {
@@ -558,6 +561,9 @@ def _secrets_from_environment():
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--label", default="run")
+    run_label = parser.parse_args().label
     old_cache = os.environ.get("AI201_CACHE", UNSET)
     os.environ["AI201_CACHE"] = "0"
     try:
@@ -586,7 +592,9 @@ def main():
                         case = dict(case)
                         if label == "c5":
                             case["watch_suggest_item"] = True
-                        result, trial_path = _run_trial(runtime, label, case, secrets)
+                        result, trial_path = _run_trial(
+                            runtime, label, case, secrets, run_label
+                        )
                         if checker in (_c2_checks, _c3_checks, _c4_checks):
                             checker(result, secrets, case)
                         else:
