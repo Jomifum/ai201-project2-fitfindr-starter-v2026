@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
+import config
+
 
 OUTCOMES = {
     "ok",
@@ -41,6 +43,7 @@ def write_run(
             "ts": datetime.now().astimezone().isoformat(),
             "run_id": str(uuid4()),
             "query": query,
+            "model": config.MODEL,
             "outcome": outcome if outcome in OUTCOMES else "unexpected_error",
             "error_type": error_type,
             "error_message": error_message,
