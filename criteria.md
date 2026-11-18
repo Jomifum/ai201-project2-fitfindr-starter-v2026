@@ -108,3 +108,25 @@ I chose 5 of 5 because a simulated model outage should follow the same error-han
      A number you missed stays where it is, gets diagnosed, and gets a fix
      attempted. That's where the points are.
      ───────────────────────────────────────────────────────────────────────── -->
+
+## Capstone criteria (Unit 9)
+
+## 1. Empty and keywordless query rejection
+**Target:** Across 4 invalid inputs (`""`, `"   "`, `"under $30"`, and `"size M"`), 4/4 runs return a non-empty actionable `session["error"]` (`outcome: "bad_input"`) and invoke `search_listings` and `suggest_outfit` 0 times.
+**Why this target:** Prevents wasted MCP and model calls on queries lacking searchable item words and gives the user a concrete correction message instead of empty results or a `TypeError`.
+
+## 2. API-key and rate-retry failure containment
+**Target:** Across 4 simulated failure runs—unset `GEMINI_API_KEY` (`no_key`), whitespace-only `GEMINI_API_KEY` (`no_key`), invalid `GEMINI_API_KEY` (`model_unavailable`), and `MAX_RETRIES` exhaustion—4/4 runs exit cleanly with 0 escaped exceptions, populate a normalized `session["error"]`, and execute 0 subsequent planning stages (`suggest_outfit` or `create_fit_card`).
+**Why this target:** Ensures configuration mistakes and upstream quota/API failures degrade into deterministic session failures rather than unhandled tracebacks or partial tool execution.
+
+## 3. Unexpected stage exception handling
+**Target:** When `suggest_outfit` or `create_fit_card` raises an unexpected exception (`RuntimeError` or `KeyError`, tested across 4 runs, 2 per stage), 4/4 runs catch the exception at the agent boundary, set `session["error"]` naming the failing stage and `--trace` flag, and terminate the planning loop immediately.
+**Why this target:** Protects CLI and HTTP callers from raw stack traces while preserving actionable diagnostic context about which planning stage failed.
+
+## 4. Structured JSONL run logging completeness
+**Target:** Across 5 test runs covering valid execution (`ok`), empty/keywordless input (`bad_input`), impossible search (`empty_search`), missing API key (`no_key`), and simulated stage exception, 5/5 runs append exactly 1 valid JSON object to the configured `FITFINDR_LOG` file containing all 14 schema fields (plus `model`), non-negative stage timings, accurate model call counts, and `outcome`/`error` matching the session with 0 secret values logged.
+**Why this target:** Guarantees complete, auditable telemetry across every success and early-exit path without leaking credentials.
+
+## 5. Matching query end-to-end consistency (baseline guard)
+**Target:** Across 5 runs of the deterministic matching query `"vintage graphic tee under $30"`, 5/5 runs complete all three stages (`search_listings`, `suggest_outfit`, `create_fit_card`) with `outcome: "ok"`, pass the exact `session["selected_item"]["id"]` (`lst_002`) into `suggest_outfit` without mutation, and return a non-empty fit card.
+**Why this target:** Confirms that the new input validation, exception containment, and structured logging wrappers preserve core end-to-end tool chaining and item selection integrity.
