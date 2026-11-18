@@ -60,6 +60,14 @@ class ModelUnavailable(Exception):
     """
 
 
+class MissingAPIKeyError(RuntimeError):
+    """Raised when no usable model API key is configured."""
+
+
+class RateLimitExhaustedError(RuntimeError):
+    """Raised when every rate-limit retry is exhausted."""
+
+
 # ─── Cache ───────────────────────────────────────────────────────────────────
 
 
@@ -156,6 +164,10 @@ def call_count() -> int:
     return _session_calls
 
 
+def cache_hit_count() -> int:
+    return _cache_hits
+
+
 def token_counts() -> dict:
     """
     What this session actually spent, in tokens, as reported by the service.
@@ -248,7 +260,7 @@ def _get_client():
 
         key = os.getenv("GEMINI_API_KEY", "").strip()
         if not key:
-            raise RuntimeError(
+            raise MissingAPIKeyError(
                 "No GEMINI_API_KEY found.\n"
                 "Copy .env.example to .env and paste your key in, then try "
                 "again. `python test.py` will confirm it's working."
@@ -320,6 +332,8 @@ def generate(
                 _cache_write(key, text)
             return text
 
+        except MissingAPIKeyError:
+            raise
         except Exception as exc:  # noqa: BLE001 — surfaced below
             last_error = exc
             message = str(exc).lower()
@@ -340,7 +354,7 @@ def generate(
             )
             time.sleep(backoff)
 
-    raise RuntimeError(
+    raise RateLimitExhaustedError(
         f"Still rate limited after {config.MAX_RETRIES} attempts. Wait a "
         f"minute and try again — your key is fine.\nLast error: {last_error}"
     )

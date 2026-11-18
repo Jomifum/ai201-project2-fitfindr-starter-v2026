@@ -15,6 +15,9 @@ env/
 # Cached model responses
 .cache/
 
+# Structured run logs
+logs/
+
 # OS noise
 .DS_Store
 Thumbs.db

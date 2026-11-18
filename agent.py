@@ -15,9 +15,14 @@ Build and test your three tools in `tools.py` first. Then come here.
 
 import config
 import re
+import time
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card
-from generate import ModelUnavailable
+from generate import (
+    MissingAPIKeyError,
+    ModelUnavailable,
+    RateLimitExhaustedError,
+)
 
 
 def parse_query(query: str) -> dict:
@@ -66,9 +71,99 @@ def new_session(query: str, wardrobe: dict) -> dict:
     }
 
 
+def _model_failure_message(exc: Exception, action: str) -> str:
+    if isinstance(exc, MissingAPIKeyError):
+        return (
+            "No API key was found. Add GEMINI_API_KEY to the .env file in "
+            "the project folder (see .env.example), then run again."
+        )
+    if isinstance(exc, RateLimitExhaustedError):
+        return "The model is rate-limited right now. Wait about a minute, then run again."
+    return (
+        f"The model couldn't be reached while {action}. Check the "
+        "API key in .env and your network connection, then retry."
+    )
+
+
+def _timed_call(stage_durations_s: dict, stage: str, function, *args):
+    started_at = time.perf_counter()
+    try:
+        return function(*args)
+    finally:
+        stage_durations_s[stage] = time.perf_counter() - started_at
+
+
 # ── planning loop ─────────────────────────────────────────────────────────────
 
 def run_agent(query: str, wardrobe: dict) -> dict:
+    import generate as generate_module
+    import run_log
+
+    started_at = time.perf_counter()
+    stage_durations_s = {}
+    run_details = {
+        "outcome": "ok",
+        "error_type": None,
+        "error_message": None,
+    }
+
+    def model_counts():
+        return (
+            generate_module.call_count(),
+            generate_module.token_counts(),
+            generate_module.cache_hit_count(),
+        )
+
+    start_model_counts = model_counts()
+    session = None
+    stage = {"name": "session initialization"}
+    try:
+        session = new_session(query, wardrobe)
+        try:
+            return _run_agent(
+                query, wardrobe, session, stage, stage_durations_s, run_details
+            )
+        except Exception as exc:
+            run_details.update(
+                outcome="unexpected_error",
+                error_type=type(exc).__name__,
+                error_message=str(exc),
+            )
+            session["error"] = (
+                f"Something unexpected broke during {stage['name']} "
+                f"({type(exc).__name__}). Rerun with --trace."
+            )
+            run_details["error_message"] = session["error"]
+            return session
+    except Exception as exc:
+        run_details.update(
+            outcome="unexpected_error",
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+        )
+        raise
+    finally:
+        run_log.write_run(
+            query=query,
+            session=session,
+            outcome=run_details["outcome"],
+            error_type=run_details["error_type"],
+            error_message=run_details["error_message"],
+            started_at=started_at,
+            stage_durations_s=stage_durations_s,
+            start_model_counts=start_model_counts,
+            model_counts=model_counts,
+        )
+
+
+def _run_agent(
+    query: str,
+    wardrobe: dict,
+    session: dict,
+    stage: dict,
+    stage_durations_s: dict,
+    run_details: dict,
+) -> dict:
     """
     Run the loop once and return the finished session.
 
@@ -124,14 +219,24 @@ def run_agent(query: str, wardrobe: dict) -> dict:
       • A handler for ModelUnavailable, so a bad key produces a message rather
         than a stack trace. The import is already at the top of this file.
     """
-    session = new_session(query, wardrobe)
-
     def finish(item_id_matches="not applicable") -> dict:
         print(f"Selected item ID matches suggest_outfit input: {item_id_matches}")
         print(f"Final session: {session}")
         return session
 
-    session["parsed"] = parse_query(query)
+    stage["name"] = "query validation"
+    if query is None or not query.strip():
+        session["error"] = (
+            "Type what you're looking for, for example "
+            "'vintage graphic tee under $30'."
+        )
+        run_details.update(outcome="bad_input", error_message=session["error"])
+        return finish()
+
+    stage["name"] = "parse_query"
+    session["parsed"] = _timed_call(
+        stage_durations_s, "parse", parse_query, query
+    )
     parsed = session["parsed"]
     trace.step(
         "parse_query",
@@ -141,19 +246,31 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             f"max_price={parsed['max_price']!r}"
         ),
     )
+    if not re.findall(r"[a-z]+|\d+", parsed["description"].casefold()):
+        session["error"] = (
+            "Your search had no item words. Add what you're looking for, "
+            "for example 'denim jacket', plus a size or price if you like."
+        )
+        run_details.update(outcome="bad_input", error_message=session["error"])
+        return finish()
+
     from mcp_client import MCPError, call_tool
 
+    stage["name"] = "MCP search"
     search_inputs = {
         "description": parsed["description"],
         "size": parsed["size"],
         "max_price": parsed["max_price"],
     }
     try:
-        session["search_results"] = call_tool(
+        session["search_results"] = _timed_call(
+            stage_durations_s,
+            "search",
+            call_tool,
             "search_listings",
             search_inputs,
         )
-    except MCPError:
+    except MCPError as exc:
         trace.step(
             "search_listings (via MCP)",
             inputs=str(search_inputs),
@@ -163,6 +280,11 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         session["error"] = (
             "The MCP search_listings call failed. Check mcp_server.py, restart the "
             "server, and re-run your search."
+        )
+        run_details.update(
+            outcome="mcp_error",
+            error_type=type(exc).__name__,
+            error_message=session["error"],
         )
         return finish()
     trace.step(
@@ -191,6 +313,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             f"No listings match {' '.join(query_details)}. Try "
             f"one of these changes: {', '.join(suggestions[:-1])} or {suggestions[-1]}."
         )
+        run_details.update(outcome="empty_search", error_message=session["error"])
         return finish()
 
     trace.step(
@@ -200,25 +323,43 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         note="search results found",
     )
     session["selected_item"] = session["search_results"][0]
+    stage["name"] = "suggest_outfit"
     item_passed_to_suggest = session["selected_item"]
     outfit_inputs = (
         f"item_id={item_passed_to_suggest['id']}, "
         f"wardrobe_items={len(session['wardrobe'].get('items', []))}"
     )
     try:
-        session["outfit_suggestion"] = suggest_outfit(
-            item_passed_to_suggest, session["wardrobe"]
+        session["outfit_suggestion"] = _timed_call(
+            stage_durations_s,
+            "suggest_outfit",
+            suggest_outfit,
+            item_passed_to_suggest,
+            session["wardrobe"],
         )
-    except ModelUnavailable:
+    except (MissingAPIKeyError, RateLimitExhaustedError, ModelUnavailable) as exc:
         trace.step(
             "suggest_outfit",
             inputs=outfit_inputs,
-            returned="ModelUnavailable",
-            note="model unavailable",
+            returned=type(exc).__name__,
+            note=(
+                "model unavailable"
+                if isinstance(exc, ModelUnavailable)
+                else "model-backed step failed"
+            ),
         )
-        session["error"] = (
-            "The model couldn't be reached while suggesting an outfit. Check the "
-            "API key in .env and your network connection, then retry."
+        session["error"] = _model_failure_message(exc, "suggesting an outfit")
+        outcome = (
+            "no_key"
+            if isinstance(exc, MissingAPIKeyError)
+            else "rate_limited"
+            if isinstance(exc, RateLimitExhaustedError)
+            else "model_unavailable"
+        )
+        run_details.update(
+            outcome=outcome,
+            error_type=type(exc).__name__,
+            error_message=session["error"],
         )
         return finish(session["selected_item"]["id"] == item_passed_to_suggest["id"])
     trace.step(
@@ -228,24 +369,42 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     )
 
     item_id_matches = session["selected_item"]["id"] == item_passed_to_suggest["id"]
+    stage["name"] = "create_fit_card"
     card_inputs = (
         f"item_id={session['selected_item']['id']}, "
         f"outfit={session['outfit_suggestion']}"
     )
     try:
-        session["fit_card"] = create_fit_card(
-            session["outfit_suggestion"], session["selected_item"]
+        session["fit_card"] = _timed_call(
+            stage_durations_s,
+            "create_fit_card",
+            create_fit_card,
+            session["outfit_suggestion"],
+            session["selected_item"],
         )
-    except ModelUnavailable:
+    except (MissingAPIKeyError, RateLimitExhaustedError, ModelUnavailable) as exc:
         trace.step(
             "create_fit_card",
             inputs=card_inputs,
-            returned="ModelUnavailable",
-            note="model unavailable",
+            returned=type(exc).__name__,
+            note=(
+                "model unavailable"
+                if isinstance(exc, ModelUnavailable)
+                else "model-backed step failed"
+            ),
         )
-        session["error"] = (
-            "The model couldn't be reached while creating the fit card. Check the "
-            "API key in .env and your network connection, then retry."
+        session["error"] = _model_failure_message(exc, "creating the fit card")
+        outcome = (
+            "no_key"
+            if isinstance(exc, MissingAPIKeyError)
+            else "rate_limited"
+            if isinstance(exc, RateLimitExhaustedError)
+            else "model_unavailable"
+        )
+        run_details.update(
+            outcome=outcome,
+            error_type=type(exc).__name__,
+            error_message=session["error"],
         )
         return finish(item_id_matches)
     trace.step(
