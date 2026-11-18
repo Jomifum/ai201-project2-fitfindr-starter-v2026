@@ -460,7 +460,25 @@ TODO (me)
 
 **Run Log and Verdicts**
 
-TODO (me)
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---:|---:|---:|---|
+| 1. Empty and keywordless query rejection | Across 4 invalid inputs (`""`, `"   "`, `"under $30"`, and `"size M"`), 4/4 runs return a non-empty actionable `session["error"]` (`outcome: "bad_input"`) and invoke `search_listings` and `suggest_outfit` 0 times. | 4/4 | 4/4 | 4/4 | MET |
+| 2. API-key and rate-retry failure containment | Across 4 simulated failure runs—unset `GEMINI_API_KEY` (`no_key`), whitespace-only `GEMINI_API_KEY` (`no_key`), invalid `GEMINI_API_KEY` (`model_unavailable`), and `MAX_RETRIES` exhaustion—4/4 runs exit cleanly with 0 escaped exceptions, populate a normalized `session["error"]`, and execute 0 subsequent planning stages (`suggest_outfit` or `create_fit_card`). | 4/4 (stubbed) | 4/4 (stubbed) | 4/4 (stubbed) | MET |
+| 3. Unexpected stage exception handling | When `suggest_outfit` or `create_fit_card` raises an unexpected exception (`RuntimeError` or `KeyError`, tested across 4 runs, 2 per stage), 4/4 runs catch the exception at the agent boundary, set `session["error"]` naming the failing stage and `--trace` flag, and terminate the planning loop immediately. | 4/4 (stubbed) | 4/4 (stubbed) | 4/4 (stubbed) | MET |
+| 4. Structured JSONL run logging completeness | Across 5 test runs covering valid execution (`ok`), empty/keywordless input (`bad_input`), impossible search (`empty_search`), missing API key (`no_key`), and simulated stage exception, 5/5 runs append exactly 1 valid JSON object to the configured `FITFINDR_LOG` file containing all 14 schema fields (plus `model`), non-negative stage timings, accurate model call counts, and `outcome`/`error` matching the session with 0 secret values logged. | 5/5 (stubbed) | 5/5 (stubbed) | 5/5 (stubbed) | MET |
+| 5. Matching query end-to-end consistency (baseline guard) | Across 5 runs of the deterministic matching query `"vintage graphic tee under $30"`, 5/5 runs complete all three stages (`search_listings`, `suggest_outfit`, `create_fit_card`) with `outcome: "ok"`, pass the exact `session["selected_item"]["id"]` (`lst_002`) into `suggest_outfit` without mutation, and return a non-empty fit card. | 5/5 | 5/5 | 5/5 | MET |
+
+**Run output (one representative trial per criterion)**
+
+- Criterion 1 — `results/capstone/before_c1_trials.jsonl`; `agent.py::_run_agent`, `session["error"]`: “Type what you're looking for, for example 'vintage graphic tee under $30'.”
+- Criterion 2 — `results/capstone/before_c2_trials.jsonl`; `agent.py::_model_failure_message`, invalid-key run: “The model couldn't be reached while suggesting an outfit. Check the API key in .env and your network connection, then retry.”
+- Criterion 3 — `results/capstone/before_c3_trials.jsonl`; `agent.py::run_agent`, injected `suggest_outfit` `RuntimeError`: “Something unexpected broke during suggest_outfit (RuntimeError). Rerun with --trace.”
+- Criterion 4 — `results/capstone/before_c4_trials.jsonl`; `tools.py::create_fit_card`: “Embrace effortless Y2K streetwear casual with this Y2K Baby Tee — Butterfly Print, available now for $18 on depop. Style it with baggy dark-wash jeans, chunky white sneakers, and an unzipped black cropped hoodie for the ultimate daytime look.”
+- Criterion 5 — `results/capstone/before_c5_trials.jsonl`; `tools.py::create_fit_card`: “Channel pure 2000s nostalgia with this Y2K Baby Tee — Butterfly Print, available now for $18 on depop. It delivers a playful, casual vibe that pairs effortlessly with baggy dark-wash jeans and chunky white sneakers for everyday streetwear. Grab it before it's gone!”
+
+Cache hits were 0 for all 66 logged trials; model-backed outputs varied across suites. The evaluation recorded 46 model calls, including a rate-limit retry.
+
+Diagnosis: TODO (me)
 
 **The Improvement**
 
